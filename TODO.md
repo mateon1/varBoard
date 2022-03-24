@@ -1,7 +1,7 @@
 # TODO:
 
--   [ ] Select what to write the GUI in
-    -   [ ] Tkinter?
+-   [x] Select what to write the GUI in
+    -   [x] Tkinter?
     -   [ ] Other UI?
 -   [ ] Chessboard display
     -   [ ] Allow setting up board state in some convenient way
@@ -14,6 +14,8 @@
             -   [ ] Display possible moves after selecting a piece
         -   [ ] By keyboard input
     -   [ ] Show players and timers
+    -   [ ] Piece movement animations
+    -   [ ] Keyboard shortcuts for moving through history, etc
 -   [ ] Other displays
     -   [ ] Game history
         -   [ ] With analysis annotations
