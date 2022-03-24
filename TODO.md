@@ -1,0 +1,41 @@
+# TODO:
+
+-   [ ] Select what to write the GUI in
+    -   [ ] Tkinter?
+    -   [ ] Other UI?
+-   [ ] Chessboard display
+    -   [ ] Allow setting up board state in some convenient way
+    -   [ ] Display variant pieces
+        -   [ ] Support custom piece-sets
+    -   [ ] Allow inputting moves (in a way that supports even weird
+        variants like amazons)
+        -   [ ] By drag-and-drop
+        -   [ ] By clicking the from and to square
+            -   [ ] Display possible moves after selecting a piece
+        -   [ ] By keyboard input
+    -   [ ] Show players and timers
+-   [ ] Other displays
+    -   [ ] Game history
+        -   [ ] With analysis annotations
+        -   [ ] In compact form (inline text, PGN-like)
+        -   [ ] In table form (like lichess)
+        -   [ ] Supporting variations
+        -   [ ] And nested variations
+    -   [ ] Engine output
+        -   [ ] MultiPV
+    -   [ ] Evaluation bar
+-   [ ] UCI Protocol
+    -   [ ] Connect to Fairy-Stockfish (or other engine)
+    -   [ ] Allow setting options
+        -   [ ] While running
+    -   [ ] Set up positions
+    -   [ ] Search positions
+        -   [ ] With proper time control info
+    -   [ ] Return bestmove results in a convenient format
+    -   [ ] Stop calculating
+-   [ ] Other
+    -   [ ] Save/load FEN
+    -   [ ] Import/export PGN
+    -   [ ] Play engine vs engine tournaments
+    -   [ ] Implement time controls, simple increment, N moves in T
+        time, N seconds per move, ...
