@@ -7,7 +7,7 @@ class Position:
 
 
 class Square:
-    RANKS = "abcdefghijklmnopqrstuvwxyz"
+    FILES = "abcdefghijklmnopqrstuvwxyz"
 
     def __init__(self, rank: int, file: int):
         self.rank = rank
@@ -15,15 +15,15 @@ class Square:
 
     @staticmethod
     def from_algebraic(s: str) -> "Square":
-        rank = Square.RANKS.index(s[0].lower())
-        file = int(s[1:])
+        file = Square.FILES.index(s[0].lower())
+        rank = int(s[1:])
         return Square(rank, file)
 
     def __repr__(self):
         return "Square(rank=%d, file=%d)" % (self.rank, self.file)
 
     def __str__(self):
-        return Square.RANKS[self.rank] + str(self.file)
+        return Square.FILES[self.file] + str(self.rank)
 
 
 class Move:
