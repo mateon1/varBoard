@@ -27,7 +27,7 @@
         -   [ ] MultiPV
     -   [ ] Evaluation bar
 -   [ ] UCI Protocol
-    -   [ ] Connect to Fairy-Stockfish (or other engine)
+    -   [x] Connect to Fairy-Stockfish (or other engine)
     -   [ ] Allow setting options
         -   [ ] While running
     -   [ ] Set up positions
