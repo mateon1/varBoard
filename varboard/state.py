@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Tuple, List, Dict, Iterator, Any
 
 
 class Square:
@@ -16,29 +16,29 @@ class Square:
         return Square(rank, file)
 
     @staticmethod
-    def from_tuple(s: (int, int)) -> Square:
+    def from_tuple(s: Tuple[int, int]) -> Square:
         return Square(rank=s[1], file=s[0])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "Square(rank=%d, file=%d)" % (self.rank, self.file)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return Square.FILES[self.file] + str(self.rank + 1)
 
-    def to_tuple(self) -> (int, int):
+    def to_tuple(self) -> Tuple[int, int]:
         return (self.file, self.rank)
 
 
 class PositionBuilder:
-    def __init__(self, size: (int, int) = (8, 8), ply: int = 0):
+    def __init__(self, size: Tuple[int, int] = (8, 8), ply: int = 0):
         w, h = size
-        self.board = [[None for x in range(w)] for y in range(h)]
-        self.ply = ply
-        self.extra = {}
+        self.board: List[List[Optional[str]]] = [[None for x in range(w)] for y in range(h)]
+        self._ply = ply
+        self._extra: Dict[str, Any] = {}
 
     def ply(self, ply: int) -> PositionBuilder:
         assert ply >= 0
-        self.ply = ply
+        self._ply = ply
         return self
 
     def piece(self, pos: Square, piece: Optional[str]) -> PositionBuilder:
@@ -48,13 +48,13 @@ class PositionBuilder:
         self.board[pos.rank][pos.file] = piece
         return self
 
-    def extra(self, prop: str, data) -> PositionBuilder:
+    def extra(self, prop: str, data: Any) -> PositionBuilder:
         """
         Sets a piece of arbitrary data for this position, used for things like the 50-move timer, pieces in hand, en passant, etc.
         The data must be of an immutable and hashable type.
         """
         assert hash(data)
-        self.extra[prop] = data
+        self._extra[prop] = data
         return self
 
     def build(self) -> Position:
@@ -69,12 +69,12 @@ class Position:
 
     def __init__(self, builder: PositionBuilder):
         self.board = tuple(tuple(row) for row in builder.board)
-        self.ply = builder.ply
+        self.ply = builder._ply
         # Python does NOT have a frozendict(), and the PEP (416) got rejected
-        self.extra = frozenset(builder.extra.items())
-        self._hash = None
+        self.extra = frozenset(builder._extra.items())
+        self._hash: Optional[int] = None
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         if self._hash is not None:
             return self._hash
         h = (976153908764132 | 1) * hash(self.extra)
@@ -86,13 +86,13 @@ class Position:
     def get_piece(self, pos: Square) -> Optional[str]:
         return self.board[pos.rank][pos.file]
 
-    def get_extra(self, prop: str):
+    def get_extra(self, prop: str) -> Optional[Any]:
         for k, v in self.extra:
             if k == prop: return v
         else:
             return None
 
-    def extra_iter(self):
+    def extra_iter(self) -> Iterator[Any]:
         return iter(self.extra)
 
 
@@ -113,18 +113,18 @@ class Move:
         self.intopiece = intopiece
 
     @staticmethod
-    def move(fromsq: Square, tosq: Square):
+    def move(fromsq: Square, tosq: Square) -> Move:
         return Move(fromsq, tosq)
 
     @staticmethod
-    def move_promote(fromsq: Square, tosq: Square, intopiece: str):
+    def move_promote(fromsq: Square, tosq: Square, intopiece: str) -> Move:
         return Move(fromsq, tosq, intopiece)
 
     @staticmethod
-    def drop_at(tosq: Square, piece: str):
+    def drop_at(tosq: Square, piece: str) -> Move:
         return Move(None, tosq, piece)
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.fromsq is None:
             return "@@@@" if self.tosq is None else "{}@{}".format(self.intopiece, self.tosq)
         elif self.tosq is not None:
@@ -136,20 +136,20 @@ class Move:
 class GameTree:
     def __init__(self, current: Position):
         self.current = current
-        # dict[Move] -> Position
-        self.next_moves = {}
-        self.extra = {}
+        self.next_moves: Dict[Move, GameTree] = {}
+        self.extra: Dict[str, Any] = {}
+        self.pv_move: Optional[Move] = None
 
-    def add_move(self, move: Move, to: Position):
-        self.next_moves[move].append(GameTree(to))
+    def add_move(self, move: Move, to: Position) -> None:
+        self.next_moves[move] = GameTree(to)
         if self.pv_move is None:
             self.pv_move = move
 
-    def set_pv_move(self, move: Move):
+    def set_pv_move(self, move: Move) -> None:
         self.pv_move = move
 
-    def set_extra(self, prop: str, data):
+    def set_extra(self, prop: str, data: Any) -> None:
         self.extra[prop] = data
 
-    def get_extra(self, prop: str):
+    def get_extra(self, prop: str) -> Any:
         return self.extra.get(prop)
