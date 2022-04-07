@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Tuple, List, Dict, Iterator, Any
+import enum
 
 
 class Square:
@@ -29,19 +30,52 @@ class Square:
         return (self.file, self.rank)
 
 
+class Color(enum.Enum):
+    BLACK = "b"
+    WHITE = "w"
+
+    @staticmethod
+    def from_ply(ply: int) -> Color:
+        return Color.WHITE if ply % 2 == 0 else Color.BLACK
+
+
+class Piece:
+    def __init__(self, piecetype: str, color: Color):
+        self.ty = piecetype.upper()
+        self.color = color
+        assert self.ty != self.ty.lower()
+
+    def __hash__(self) -> int:
+        return hash(self.ty) * 1000000007 + hash(self.color) * 9876543211
+
+    def __str__(self) -> str:
+        return self.ty.upper() if self.color == Color.WHITE else self.ty.lower()
+
+    def __repr__(self) -> str:
+        return f"Piece({self.ty!r}, {self.color})"
+
+
 class PositionBuilder:
     def __init__(self, size: Tuple[int, int] = (8, 8), ply: int = 0):
         w, h = size
-        self.board: List[List[Optional[str]]] = [[None for x in range(w)] for y in range(h)]
+        self.board: List[List[Optional[Piece]]] = [[None for x in range(w)] for y in range(h)]
         self._ply = ply
         self._extra: Dict[str, Any] = {}
+
+    @staticmethod
+    def from_position(pos: Position) -> PositionBuilder:
+        bld = PositionBuilder((0, 0), pos.ply)
+        bld.board = [list(row) for row in pos.board]
+        for k, v in pos.extra:
+            bld.extra(k, v)
+        return bld
 
     def ply(self, ply: int) -> PositionBuilder:
         assert ply >= 0
         self._ply = ply
         return self
 
-    def piece(self, pos: Square, piece: Optional[str]) -> PositionBuilder:
+    def piece(self, pos: Square, piece: Optional[Piece]) -> PositionBuilder:
         """
         Sets a piece at a given coordinate in this position
         """
@@ -83,7 +117,7 @@ class Position:
         self._hash = hash(h)
         return self._hash
 
-    def get_piece(self, pos: Square) -> Optional[str]:
+    def get_piece(self, pos: Square) -> Optional[Piece]:
         return self.board[pos.rank][pos.file]
 
     def get_extra(self, prop: str) -> Optional[Any]:
@@ -94,6 +128,11 @@ class Position:
 
     def extra_iter(self) -> Iterator[Any]:
         return iter(self.extra)
+
+    def squares_iter(self) -> Iterator[Tuple[Square, Optional[Piece]]]:
+        for rank in range(len(self.board)):
+            for file in range(len(self.board[rank])):
+                yield (Square(rank, file), self.board[rank][file])
 
 
 class Move:
@@ -106,8 +145,10 @@ class Move:
     Otherwise, if fromsq != None, tosq != None, represents a normal move
     """
 
-    def __init__(self, fromsq: Optional[Square] = None, tosq: Optional[Square] = None, intopiece: Optional[str] = None):
+    def __init__(self, fromsq: Optional[Square] = None, tosq: Optional[Square] = None, intopiece: Optional[Piece] = None):
         assert tosq is not None, "Removing pieces not yet supported"
+        if fromsq is None and tosq is not None:
+            assert intopiece is not None, "Piece drop must have a piece type"
         self.fromsq = fromsq
         self.tosq = tosq
         self.intopiece = intopiece
@@ -117,20 +158,37 @@ class Move:
         return Move(fromsq, tosq)
 
     @staticmethod
-    def move_promote(fromsq: Square, tosq: Square, intopiece: str) -> Move:
+    def move_promote(fromsq: Square, tosq: Square, intopiece: Piece) -> Move:
         return Move(fromsq, tosq, intopiece)
 
     @staticmethod
-    def drop_at(tosq: Square, piece: str) -> Move:
+    def drop_at(tosq: Square, piece: Piece) -> Move:
         return Move(None, tosq, piece)
 
     def __str__(self) -> str:
         if self.fromsq is None:
-            return "@@@@" if self.tosq is None else "{}@{}".format(self.intopiece, self.tosq)
+            if self.tosq is None:
+                return "@@@@"
+            if self.intopiece is not None:
+                return "{}@{}".format(self.intopiece.ty, self.tosq)
+            assert False, "Impossible case: piece drop without piece"
         elif self.tosq is not None:
             return "{}{}{}".format(self.fromsq, self.tosq, self.intopiece or "")
         else:
             assert False, "unimplemented"
+
+    def __repr__(self) -> str:
+        if self.fromsq is None and self.tosq is not None and self.intopiece is not None:
+            return f"Move.drop_at({self.tosq!r}, {self.intopiece!r})"
+        if self.fromsq is not None and self.tosq is not None:
+            if self.intopiece is not None:
+                return f"Move.move_promote({self.fromsq!r}, {self.tosq!r}, {self.intopiece!r})"
+            else:
+                return f"Move.move({self.fromsq!r}, {self.tosq!r})"
+        fromsq = self.fromsq
+        tosq = self.tosq
+        intopiece = self.intopiece
+        return f"Move({fromsq = !r}, {tosq = !r}, {intopiece = !r})"
 
 
 class GameTree:
