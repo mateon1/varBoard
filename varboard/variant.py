@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterator, List, Dict, Tuple, Optional
+from typing import Iterator, Optional
 import enum
 from .state import PositionBuilder, Position, Square, Move, Piece, Color
 
@@ -21,11 +21,19 @@ class Variant:
     def startpos(self) -> Position:
         raise TypeError("Called startpos on Variant base type")
 
-    def is_ended(self, pos: Position) -> bool:
-        raise TypeError("Called is_ended on Variant base type")
+    def is_pos_ended(self, pos: Position) -> bool:
+        raise TypeError("Called is_pos_ended on Variant base type")
 
-    def win_value(self, pos: Position) -> GameEndValue:
-        raise TypeError("Called win_value on Variant base type")
+    def game_value(self, startpos: Position, moves: Iterator[Move]) -> Optional[GameEndValue]:
+        pos = startpos
+        for m in moves:
+            pos = self.execute_move(pos, m)
+        if not self.is_pos_ended(pos):
+            return None
+        return self.pos_value(pos)
+
+    def pos_value(self, pos: Position) -> GameEndValue:
+        raise TypeError("Called pos_value on Variant base type")
 
     def legal_moves(self, pos: Position) -> Iterator[Move]:
         raise TypeError("Called legal_moves on Variant base type")
@@ -39,7 +47,7 @@ class Variant:
         color = Color.from_ply(pos.ply)
 
         if move.fromsq is None and move.intopiece is not None:
-            hand: Optional[Tuple[Tuple[Piece, ...], Tuple[Piece, ...]]] = pos.get_extra("hand")
+            hand: Optional[tuple[tuple[Piece, ...], tuple[Piece, ...]]] = pos.get_extra("hand")
             # If we're tracking pieces held in hand, remove the one we just dropped
             if hand is not None:
                 whand, bhand = hand
@@ -74,7 +82,7 @@ class Variant:
 
 class TicTacToe(Variant):
     @staticmethod
-    def lines(pos: Position) -> Iterator[List[Optional[Piece]]]:
+    def lines(pos: Position) -> Iterator[list[Optional[Piece]]]:
         size = len(pos.board)
         assert len(pos.board[0]) == size, "Square boards only"
         for row in pos.board:
@@ -87,7 +95,7 @@ class TicTacToe(Variant):
     def startpos(self) -> Position:
         return PositionBuilder((3, 3), 0).build()
 
-    def is_ended(self, pos: Position) -> bool:
+    def is_pos_ended(self, pos: Position) -> bool:
         if all(p is not None for sq, p in pos.squares_iter()):
             return True
         for line in self.lines(pos):
@@ -98,7 +106,7 @@ class TicTacToe(Variant):
                 return True
         return False
 
-    def win_value(self, pos: Position) -> GameEndValue:
+    def pos_value(self, pos: Position) -> GameEndValue:
         for line in self.lines(pos):
             if any(p is None for p in line):
                 continue

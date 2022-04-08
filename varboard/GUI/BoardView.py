@@ -1,6 +1,6 @@
 import tkinter as tk
-from Square import Square
-from PieceView import Piece
+from .SquareView import Square
+from .PieceView import Piece
 
 
 class BoardView(tk.Frame):
