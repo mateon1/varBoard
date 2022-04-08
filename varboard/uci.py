@@ -5,6 +5,7 @@ import time
 from typing import Optional, Union, Iterator, Iterable, Callable, IO, Any
 
 # Types:
+function = type(lambda: 0)
 Context = dict[str, Any]
 CommandData = tuple[str, Context]
 Parser = Callable[[bytes, Context], tuple[Any, bytes]]
@@ -30,7 +31,7 @@ def parse_int(line: bytes, _ctx: Context) -> tuple[int, bytes]:
     i, rest = take_word(line)
     return int(i), rest
 
-def parse_score(line: bytes, _ctx: Context) -> tuple[tuple[str, int], bytes]:
+def parse_score(line: bytes, _ctx: Context) -> tuple[tuple[str, Any], bytes]:
     ty, rest = take_word(line)
     if ty == b"cp":
         v, rest = take_word(rest)
@@ -161,6 +162,7 @@ class UCIEngine:
                     print(f"Bad field value: {field} {val}")
                     # allow it to continue parsing anyway, maybe we'll get something useful
             else:
+                assert isinstance(field_parse, function)
                 val, rest = field_parse(rest, ctx)
             ctx[field] = val
 
