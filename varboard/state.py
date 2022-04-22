@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Optional, Union, Tuple, List, Dict, Iterator, Iterable, Any
+from typing import Optional, Union, Tuple, List, Dict, Iterator, Any
 import enum
-from .variant import Variant
 
 
 class Square:
@@ -38,6 +37,9 @@ class Color(enum.Enum):
     @staticmethod
     def from_ply(ply: int) -> Color:
         return Color.WHITE if ply % 2 == 0 else Color.BLACK
+
+    def __invert__(self):
+        return Color.BLACK if self == Color.WHITE else Color.WHITE
 
 
 class Piece:
@@ -124,8 +126,20 @@ class Position:
         self._hash = hash(h)
         return self._hash
 
-    def get_piece(self, pos: Square) -> Optional[Piece]:
-        return self.board[pos.rank][pos.file]
+    def __str__(self) -> str:
+        return "\n".join("".join(str(p) if p is not None else " " for p in r) for r in self.board[::-1])
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def bounds(self) -> Tuple[int, int]:
+        return (len(self.board[0]), len(self.board))
+
+    def inbounds(self, sq: Square) -> bool:
+        return 0 <= sq.rank < len(self.board) and 0 <= sq.file < len(self.board[0])
+
+    def get_piece(self, sq: Square) -> Optional[Piece]:
+        return self.board[sq.rank][sq.file]
 
     def get_extra(self, prop: str) -> Optional[Any]:
         for k, v in self.extra:
@@ -152,7 +166,8 @@ class Move:
     Otherwise, if fromsq != None, tosq != None, represents a normal move
     """
 
-    def __init__(self, fromsq: Optional[Square] = None, tosq: Optional[Square] = None, intopiece: Optional[Piece] = None):
+    def __init__(self, fromsq: Optional[Square] = None, tosq: Optional[Square] = None,
+                 intopiece: Optional[Piece] = None):
         assert tosq is not None, "Removing pieces not yet supported"
         if fromsq is None and tosq is not None:
             assert intopiece is not None, "Piece drop must have a piece type"
@@ -220,30 +235,3 @@ class GameTree:
         return self.extra.get(prop)
 
 
-class GameController:
-    def __init__(self, variant: Variant, pos: Optional[Position]):
-        self.variant = variant
-        self.tree = GameTree(variant.startpos() if pos is None else pos)
-        self.current = self.tree
-        self.curmoves: list[Move] = []
-
-    def root(self) -> None:
-        self.current = self.tree
-        self.curmoves.clear()
-
-    def moves(self, moves: Iterable[Move]) -> None:
-        for m in moves:
-            self.move(m)
-
-    def move(self, move: Move) -> None:
-        if move not in self.current.next_moves:
-            newpos = self.variant.execute_move(self.current.pos, move)
-            self.current.add_move(move, newpos)
-        self.current = self.current.next_moves[move]
-        self.curmoves.append(move)
-
-    def move_back(self) -> None:
-        self.curmoves.pop()
-        moves = self.curmoves.copy()
-        self.root()
-        self.moves(moves)
