@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Optional, Tuple, List, Dict, Iterator, Any
+from typing import Optional, Union, Tuple, List, Dict, Iterator, Iterable, Any
 import enum
+from .variant import Variant
 
 
 class Square:
@@ -53,6 +54,12 @@ class Piece:
 
     def __repr__(self) -> str:
         return f"Piece({self.ty!r}, {self.color})"
+
+
+# Types for position extras
+HandType = tuple[tuple[Piece, ...], tuple[Piece, ...]]
+TimerType = Union[int, tuple[int, int]]
+TimeIncType = Union[int, tuple[int, int]]
 
 
 class PositionBuilder:
@@ -193,7 +200,7 @@ class Move:
 
 class GameTree:
     def __init__(self, current: Position):
-        self.current = current
+        self.pos = current
         self.next_moves: Dict[Move, GameTree] = {}
         self.extra: Dict[str, Any] = {}
         self.pv_move: Optional[Move] = None
@@ -211,3 +218,32 @@ class GameTree:
 
     def get_extra(self, prop: str) -> Any:
         return self.extra.get(prop)
+
+
+class GameController:
+    def __init__(self, variant: Variant, pos: Optional[Position]):
+        self.variant = variant
+        self.tree = GameTree(variant.startpos() if pos is None else pos)
+        self.current = self.tree
+        self.curmoves: list[Move] = []
+
+    def root(self) -> None:
+        self.current = self.tree
+        self.curmoves.clear()
+
+    def moves(self, moves: Iterable[Move]) -> None:
+        for m in moves:
+            self.move(m)
+
+    def move(self, move: Move) -> None:
+        if move not in self.current.next_moves:
+            newpos = self.variant.execute_move(self.current.pos, move)
+            self.current.add_move(move, newpos)
+        self.current = self.current.next_moves[move]
+        self.curmoves.append(move)
+
+    def move_back(self) -> None:
+        self.curmoves.pop()
+        moves = self.curmoves.copy()
+        self.root()
+        self.moves(moves)

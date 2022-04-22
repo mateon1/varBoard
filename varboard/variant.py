@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import Iterator, Optional
 import enum
-from .state import PositionBuilder, Position, Square, Move, Piece, Color
+from .state import PositionBuilder, Position, Square, Move, Piece, Color, HandType
+
 
 class GameEndValue(enum.Enum):
     WHITE_WIN = 1
@@ -38,16 +39,22 @@ class Variant:
     def legal_moves(self, pos: Position) -> Iterator[Move]:
         raise TypeError("Called legal_moves on Variant base type")
 
+    def is_legal(self, pos: Position, move: Move) -> bool:
+        for m in self.legal_moves(pos):
+            if m == move: return True
+        return False
+
     def execute_move(self, pos: Position, move: Move) -> Position:
         """
         Generic move implementation, this is okay for a lot of moves, but may be wrong if moves have extra effects, like castling, setting en-passant state, etc.
         """
+        assert self.is_legal(pos, move)
         nextpos = PositionBuilder.from_position(pos)
         nextpos.ply(pos.ply + 1)
         color = Color.from_ply(pos.ply)
 
         if move.fromsq is None and move.intopiece is not None:
-            hand: Optional[tuple[tuple[Piece, ...], tuple[Piece, ...]]] = pos.get_extra("hand")
+            hand: Optional[HandType] = pos.get_extra("hand")
             # If we're tracking pieces held in hand, remove the one we just dropped
             if hand is not None:
                 whand, bhand = hand
@@ -57,7 +64,8 @@ class Variant:
                 else:
                     idx = bhand.index(move.intopiece)
                     bhand = bhand[:idx] + bhand[idx+1:]
-                nextpos.extra("hand", (whand, bhand))
+                hand = whand, bhand
+                nextpos.extra("hand", hand)
 
         if move.fromsq is not None:
             nextpos.piece(move.fromsq, None)
