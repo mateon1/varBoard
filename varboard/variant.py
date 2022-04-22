@@ -129,3 +129,17 @@ class TicTacToe(Variant):
         for sq, p in pos.squares_iter():
             if p is None:
                 yield Move.drop_at(sq, piece)
+
+class Chess(Variant):
+    #                    hgfedcba  (so 1<<file works)
+    QUEENSIDE_CASTLE = 0b00000001
+    KINGSIDE_CASTLE  = 0b10000000
+    def startpos(self) -> Position:
+        b = PositionBuilder((8, 8), 0)
+        for x, p in enumerate("RNBQKBNR"):
+            b.piece(Square(file=x, rank=0), Piece(p, Color.WHITE))
+            b.piece(Square(file=x, rank=7), Piece(p, Color.BLACK))
+            b.piece(Square(file=x, rank=1), Piece("P", Color.WHITE))
+            b.piece(Square(file=x, rank=6), Piece("P", Color.BLACK))
+        b.extra("castle", (0b10000001, 0b10000001))
+        return b.build()
