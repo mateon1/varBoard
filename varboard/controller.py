@@ -23,7 +23,8 @@ class GameController:
 
     def move(self, move: Move) -> None:
         if move not in self.current.next_moves:
-            newpos = self.variant.execute_move(self.current.pos, move)
+            newpos, _ = self.variant.execute_move(self.current.pos, move)
+            # TODO: Shove actions to GUI
             self.current.add_move(move, newpos)
         self.current = self.current.next_moves[move]
         self.curmoves.append(move)

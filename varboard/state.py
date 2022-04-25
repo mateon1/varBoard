@@ -10,6 +10,9 @@ class Square:
         self.rank = rank
         self.file = file
 
+    def offset(self, x: int, y: int) -> Square:
+        return Square(self.rank + y, self.file + x)
+
     @staticmethod
     def from_algebraic(s: str) -> Square:
         file = Square.FILES.index(s[0].lower())
@@ -38,7 +41,7 @@ class Color(enum.Enum):
     def from_ply(ply: int) -> Color:
         return Color.WHITE if ply % 2 == 0 else Color.BLACK
 
-    def __invert__(self):
+    def __invert__(self) -> Color:
         return Color.BLACK if self == Color.WHITE else Color.WHITE
 
 
@@ -155,6 +158,30 @@ class Position:
             for file in range(len(self.board[rank])):
                 yield (Square(rank, file), self.board[rank][file])
 
+    def pieces_iter(self, color: Optional[Color] = None) -> Iterator[Tuple[Square, Piece]]:
+        for rank, row in enumerate(self.board):
+            for file, p in enumerate(row):
+                if p is not None and (color is None or p.color == color):
+                    yield (Square(rank, file), p)
+
+
+class BoardAction:
+    """
+    Helper class, distinct from Move, that represents how board state is changed, irrespective of variant.
+    """
+
+    def __init__(self, tosq: Square, fromsq_or_piece: Union[Square, Piece, None]):
+        self.fromsq: Optional[Square] = None
+        self.piece: Optional[Piece] = None
+        self.tosq = tosq
+        if isinstance(fromsq_or_piece, Square):
+            self.fromsq = fromsq_or_piece
+        else:
+            self.piece = fromsq_or_piece
+
+    def __repr__(self) -> str:
+        return f"{self.fromsq or self.piece}->{self.tosq}"
+
 
 class Move:
     """
@@ -164,6 +191,8 @@ class Move:
     If fromsq != None, tosq == None, it represents removing a piece from the board
     If fromsq != None, tosq != None and intopiece != None, represents a piece promotion
     Otherwise, if fromsq != None, tosq != None, represents a normal move
+
+    Variants may interpret this differently.
     """
 
     def __init__(self, fromsq: Optional[Square] = None, tosq: Optional[Square] = None,
@@ -176,15 +205,20 @@ class Move:
         self.intopiece = intopiece
 
     @staticmethod
-    def move(fromsq: Square, tosq: Square) -> Move:
+    def move(fromsq_raw: Union[Square, str], tosq_raw: Union[Square, str]) -> Move:
+        fromsq = fromsq_raw if isinstance(fromsq_raw, Square) else Square.from_algebraic(fromsq_raw)
+        tosq = tosq_raw if isinstance(tosq_raw, Square) else Square.from_algebraic(tosq_raw)
         return Move(fromsq, tosq)
 
     @staticmethod
-    def move_promote(fromsq: Square, tosq: Square, intopiece: Piece) -> Move:
+    def move_promote(fromsq_raw: Union[Square, str], tosq_raw: Union[Square, str], intopiece: Piece) -> Move:
+        fromsq = fromsq_raw if isinstance(fromsq_raw, Square) else Square.from_algebraic(fromsq_raw)
+        tosq = tosq_raw if isinstance(tosq_raw, Square) else Square.from_algebraic(tosq_raw)
         return Move(fromsq, tosq, intopiece)
 
     @staticmethod
-    def drop_at(tosq: Square, piece: Piece) -> Move:
+    def drop_at(tosq_raw: Union[Square, str], piece: Piece) -> Move:
+        tosq = tosq_raw if isinstance(tosq_raw, Square) else Square.from_algebraic(tosq_raw)
         return Move(None, tosq, piece)
 
     def __str__(self) -> str:
