@@ -3,9 +3,9 @@ import tkinter.messagebox
 
 
 class Square(tk.Frame):
-    def __init__(self, master, height, width, image=None):
+    def __init__(self, master, board_view, height, width, image=None):
         def on_click(event):
-            tkinter.messagebox.showinfo(message=f'Clicked {self["bg"]} square')
+            board_view.handle_square_btn(self)
 
         super().__init__(master=master, height=height, width=width, relief='sunken', borderwidth=1)
         self.piece = None

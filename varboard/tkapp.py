@@ -1,27 +1,32 @@
 import tkinter as tk
-from .GUI.BoardView import BoardView
-from .GUI.PieceView import Piece
+from GUI.ChessBoardView import ChessBoardView
+from GUI.TicTacToeBoardView import TicTacToeBoardView
 
-class MainApplication(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
+from GUI.PieceView import Piece
+from GUI.StartMenu import StartMenu
 
-        scale = (75, 75)
-        board = [[None for _ in range(8)] for _ in range(8)]
-        self.board_view = BoardView(self, board, scale[0], scale[1], reverse=False)
-        # FIXME: The paths here should be relative to some resource directory
-        pieces = {'bK': Piece('varboard/GUI/pieces/bK.svg', scale),
-                  'wN': Piece('varboard/GUI/pieces/wN.svg', scale),
-                  'bR': Piece('varboard/GUI/pieces/bR.svg', scale),
-                  'wK': Piece('varboard/GUI/pieces/wK.svg', scale)}
-        self.board_view.squares[1][0].set_piece(pieces['bK'])
-        self.board_view.squares[1][1].set_piece(pieces['wN'])
-        self.board_view.squares[6][5].set_piece(pieces['bR'])
-        self.board_view.squares[5][4].set_piece(pieces['wK'])
-        self.board_view.pack()
+# import GUI.ChessBoardView as cbv
+# import GUI.PieceView as Piece
+import variant
+import state
+# from .GUI.PieceView import Piece
+
+class MainApplication(tk.Tk):
+    def __init__(self, *args, **kwargs):
+        tk.Tk.__init__(self, *args, **kwargs)
+        self.start_menu = StartMenu(master=self)
+        self.start_menu.pack()
+
+    def handle_play_btn(self, variant):
+        if variant == "Standard":
+            self.start_menu.destroy()
+            board = [[None for _ in range(8)] for _ in range(8)]
+            ChessBoardView(self, board, 75, 75).pack()
+        elif variant == 'TicTacToe':
+            self.start_menu.destroy()
+            board = [[None for _ in range(3)] for _ in range(3)]
+            TicTacToeBoardView(self, board, 75, 75).pack()
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    MainApplication(root).pack(side="top", fill="both", expand=True)
-    root.mainloop()
+    r = MainApplication()
+    r.mainloop()
