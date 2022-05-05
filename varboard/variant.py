@@ -352,12 +352,16 @@ class Chess(Variant):
                 nextpos.piece(capturesq, None)
                 actions.append(BoardAction(capturesq, None))
             elif move.tosq == fromsq.offset(0, 2 * forwardy):
-                p = pos.get_piece(move.tosq.offset(-1, 0))
-                if p is not None and p.color == ~my and p.ty == "P":
-                    nextpos.extra("ep", move.tosq)
-                p = pos.get_piece(move.tosq.offset(1, 0))
-                if p is not None and p.color == ~my and p.ty == "P":
-                    nextpos.extra("ep", move.tosq)
+                sq = move.tosq.offset(-1, 0)
+                if pos.inbounds(sq):
+                    p = pos.get_piece(sq)
+                    if p is not None and p.color == ~my and p.ty == "P":
+                        nextpos.extra("ep", move.tosq.offset(0, -forwardy))
+                sq = move.tosq.offset(1, 0)
+                if pos.inbounds(sq):
+                    p = pos.get_piece(move.tosq.offset(1, 0))
+                    if p is not None and p.color == ~my and p.ty == "P":
+                        nextpos.extra("ep", move.tosq.offset(0, -forwardy))
 
             return nextpos.build(), actions
         castlew: int
