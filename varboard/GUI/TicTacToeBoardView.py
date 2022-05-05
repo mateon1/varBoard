@@ -1,5 +1,7 @@
 from .BoardView import *
 from ..state import Piece, Color
+import tkinter.messagebox
+from varboard.variant import GameEndValue
 
 
 class TicTacToeBoardView(BoardView):
@@ -26,6 +28,14 @@ class TicTacToeBoardView(BoardView):
                         self.set_piece(a.tosq, a.piece)
                 if gameend != None:
                     print("Game ended!", gameend)
+                    if gameend == GameEndValue.WHITE_WIN:
+                        message = "Circle won!"
+                    elif gameend == GameEndValue.BLACK_WIN:
+                        message = "Cross won!"
+                    else:
+                        message = "DRAW!"
+                    tkinter.messagebox.showinfo("Game over", message)
+                    self.master.end_game()
                 break
         else:
             print("Illegal move!!!")
