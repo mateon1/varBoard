@@ -1,19 +1,18 @@
 import tkinter as tk
-from .SquareView import Square
-from .PieceView import Piece
-
+from .widgets import SquareView, PieceView
+from typing import Collection, Any
 
 class BoardView(tk.Frame):
-    def __init__(self, master, variant, square_scale, reverse=False, white_color='white', black_color='white', *args, **kwargs):
+    def __init__(self, master, controller, square_scale, reverse=False, white_color='white', black_color='white', *args, **kwargs):
         kwargs['relief'] = kwargs.get('relief', 'raised')
         kwargs['bd'] = kwargs.get('bd', 10)
         super().__init__(master, *args, **kwargs)
 
         self.square_scale = square_scale
 
-        pos = variant.startpos()
+        self.controller = controller
 
-        self.board_height, self.board_width  = pos.bounds()
+        self.board_height, self.board_width = controller.current.pos.bounds()
 
         self.white_color = white_color
         self.black_color = black_color
@@ -28,16 +27,14 @@ class BoardView(tk.Frame):
         # frame for main board with squares in grid
         self.frm_main_board = tk.Frame(master=self, relief=tk.RAISED, bd=6)
 
-        self.squares = [[Square(self.frm_main_board, self, square_scale) for _ in range(self.board_width)]
-                        for _ in range(self.board_height)]
+        self.squares = [[SquareView(self.frm_main_board, self, square_scale[0], square_scale[1], x, y) for x in range(self.board_width)]
+                        for y in range(self.board_height)]
+        self.pieces = {}
 
         self.color_squares(reverse)
 
         self.set_bars(self)
         self.grid_components()
-
-    def set_square_image(self, row, column, pimg):
-        self.squares[row][column].set_image(pimg)
 
     def color_squares(self, reverse):
         for row in range(self.board_height):
@@ -55,9 +52,9 @@ class BoardView(tk.Frame):
                     color1, color2 = color2, color1
 
                 if abs(row - column) % 2 == 0:
-                    self.squares[row][column].set_background(color1)
+                    self.squares[row][column].set_color(color1)
                 else:
-                    self.squares[row][column].set_background(color2)
+                    self.squares[row][column].set_color(color2)
 
     def set_bars(self, reverse):
         pass
@@ -65,22 +62,12 @@ class BoardView(tk.Frame):
     def grid_components(self):
         pass
 
+    def set_piece(self, x, y, piece):
+        old = self.pieces.get((x, y))
+        pimg = PieceView.load_image(f"pieces/{piece}.svg", self.square_scale)
+        if old:
+            old.set_image(pimg)
+        else:
+            self.pieces[(x, y)] = PieceView(self.frm_main_board, pimg)
+            self.pieces[(x, y)].grid(row=(self.board_height - y - 1), column=x, sticky='NESW', padx=(0, 0), pady=(0, 0))
 
-if __name__ == '__main__':
-    window = tk.Tk()
-    window.aspect(1, 1, 1, 1)
-    scale = (75, 75)
-    board = [[None for _ in range(8)] for _ in range(8)]
-    board_view = BoardView(window, board, scale[0], scale[1], reverse=False)
-    print(board_view.tk)
-    pieces = {'bK': Piece('pieces/bK.svg', scale),
-              'wN': Piece('pieces/wN.svg', scale),
-              'bR': Piece('pieces/bR.svg', scale),
-              'wK': Piece('pieces/wK.svg', scale)}
-    board_view.squares[1][0].set_piece(pieces['bK'])
-    board_view.squares[1][1].set_piece(pieces['wN'])
-    board_view.squares[6][5].set_piece(pieces['bR'])
-    board_view.squares[5][4].set_piece(pieces['wK'])
-
-    board_view.pack()
-    window.mainloop()

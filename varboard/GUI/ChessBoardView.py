@@ -1,9 +1,8 @@
 import tkinter as tk
 import tkinter.messagebox
 
-from .BoardView import *
-from .PieceView import *
-
+from .widgets import PieceView
+from .BoardView import BoardView
 
 class ChessBoardView(BoardView):
     def __init__(self, master, variant, square_scale, reverse=False, white_color='linen', black_color='saddle brown', *args, **kwargs):
@@ -44,19 +43,18 @@ class ChessBoardView(BoardView):
 
 
 if __name__ == '__main__':
+    from .. import variant
+    from ..controller import GameController
     window = tk.Tk()
     window.aspect(1, 1, 1, 1)
     scale = (75, 75)
-    board = [[None for _ in range(8)] for _ in range(8)]
-    board_view = ChessBoardView(window, board, scale[0], scale[1], reverse=True)
-    pieces = {'bK': Piece('pieces/bK.svg', scale),
-              'wN': Piece('pieces/wN.svg', scale),
-              'bR': Piece('pieces/bR.svg', scale),
-              'wK': Piece('pieces/wK.svg', scale)}
-    board_view.squares[1][0].set_piece(pieces['bK'])
-    board_view.squares[1][1].set_piece(pieces['wN'])
-    board_view.squares[6][5].set_piece(pieces['bR'])
-    board_view.squares[5][4].set_piece(pieces['wK'])
+    controller = GameController(variant.Chess(), None)
+    board_view = ChessBoardView(window, controller, scale, reverse=False)
+    print(board_view.tk)
+    board_view.set_piece(0, 1, 'bK')
+    board_view.set_piece(1, 1, 'wN')
+    board_view.set_piece(5, 6, 'bR')
+    board_view.set_piece(4, 5, 'wK')
 
     board_view.pack()
     window.mainloop()
