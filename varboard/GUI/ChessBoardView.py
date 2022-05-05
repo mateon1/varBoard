@@ -37,9 +37,23 @@ class ChessBoardView(BoardView):
         self.rowconfigure([0, 1], weight=1)
         self.columnconfigure([0, 1], weight=1)
 
-    def handle_square_btn(self, square):
-        # self.last_pointed_square.unhightlight()
-        tkinter.messagebox.showinfo(title='On click', message="Clicked on square!")
+    def handle_square_btn(self, square, x, y):
+        print(f"Clicked {x}, {y}")
+        for m in self.controller.legal_moves():
+            if m.tosq.to_tuple() == (x, y):
+                print("executing move", m)
+                actns, gameend = self.controller.move(m)
+                for a in actns:
+                    if a.fromsq is not None:
+                        # Not for tic tac toe
+                        self.move_piece(a.fromsq, a.tosq)
+                    else:
+                        self.set_piece(a.tosq, a.piece)
+                if gameend != None:
+                    print("Game ended!", gameend)
+                break
+        else:
+            print("Illegal move!!!")
 
 
 if __name__ == '__main__':

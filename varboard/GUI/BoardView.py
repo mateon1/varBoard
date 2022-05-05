@@ -27,7 +27,7 @@ class BoardView(tk.Frame):
         # frame for main board with squares in grid
         self.frm_main_board = tk.Frame(master=self, relief=tk.RAISED, bd=6)
 
-        self.squares = [[SquareView(self.frm_main_board, self, square_scale[0], square_scale[1], x, y) for x in range(self.board_width)]
+        self.squares = [[SquareView(self.frm_main_board, self, square_scale[0], square_scale[1], x, self.board_height - y - 1) for x in range(self.board_width)]
                         for y in range(self.board_height)]
         self.pieces = {}
 
@@ -35,6 +35,10 @@ class BoardView(tk.Frame):
 
         self.set_bars(self)
         self.grid_components()
+
+        # set pieces from current position
+        for sq, p in controller.current.pos.pieces_iter():
+            self.set_piece(sq, p)
 
     def color_squares(self, reverse):
         for row in range(self.board_height):
@@ -62,12 +66,33 @@ class BoardView(tk.Frame):
     def grid_components(self):
         pass
 
-    def set_piece(self, x, y, piece):
-        old = self.pieces.get((x, y))
-        pimg = PieceView.load_image(f"pieces/{piece}.svg", self.square_scale)
+    def piece_to_id(self, piece):
+        return piece.color.value + piece.ty
+
+    def set_piece(self, pos, piece):
+        pos = pos if isinstance(pos, tuple) else pos.to_tuple()
+        old = self.pieces.get(pos)
+        if piece is None:
+            if old:
+                old.destroy()
+                del self.pieces[pos]
+            return
+        pimg = PieceView.load_image(f"pieces/{self.piece_to_id(piece)}.svg", self.square_scale)
         if old:
             old.set_image(pimg)
         else:
-            self.pieces[(x, y)] = PieceView(self.frm_main_board, pimg)
-            self.pieces[(x, y)].grid(row=(self.board_height - y - 1), column=x, sticky='NESW', padx=(0, 0), pady=(0, 0))
+            self.pieces[pos] = PieceView(self.frm_main_board, self, pimg)
+            self.pieces[pos].set_xy(*pos)
+            self.pieces[pos].grid(row=(self.board_height - pos[1] - 1), column=pos[0], sticky='NESW', padx=(0, 0), pady=(0, 0))
+
+    def move_piece(self, fpos, tpos):
+        fpos = fpos if isinstance(fpos, tuple) else fpos.to_tuple()
+        tpos = tpos if isinstance(tpos, tuple) else tpos.to_tuple()
+        old = self.pieces[fpos]
+        del self.pieces[fpos]
+        if tpos in self.pieces:
+            self.pieces[tpos].destroy()
+        self.pieces[tpos] = old
+        self.pieces[tpos].set_xy(*tpos)
+        self.pieces[tpos].grid(row=(self.board_height - tpos[1] - 1), column=tpos[0], sticky='NESW', padx=(0, 0), pady=(0, 0))
 

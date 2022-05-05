@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Optional, Iterable
 
-from varboard.state import Position, GameTree, Move
-from varboard.variant import Variant
+from varboard.state import Position, GameTree, Move, BoardAction
+from varboard.variant import Variant, GameEndValue
 
 
 class GameController:
@@ -21,13 +21,13 @@ class GameController:
         for m in moves:
             self.move(m)
 
-    def move(self, move: Move) -> None:
+    def move(self, move: Move) -> tuple[list[BoardAction], Optional[GameEndValue]]:
+        newpos, actions = self.variant.execute_move(self.current.pos, move)
         if move not in self.current.next_moves:
-            newpos, _ = self.variant.execute_move(self.current.pos, move)
-            # TODO: Shove actions to GUI
             self.current.add_move(move, newpos)
         self.current = self.current.next_moves[move]
         self.curmoves.append(move)
+        return actions, self.variant.game_value(self.tree.pos, self.curmoves)
 
     def move_back(self) -> None:
         self.curmoves.pop()

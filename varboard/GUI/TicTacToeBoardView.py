@@ -1,4 +1,5 @@
 from .BoardView import *
+from ..state import Piece, Color
 
 
 class TicTacToeBoardView(BoardView):
@@ -8,8 +9,26 @@ class TicTacToeBoardView(BoardView):
     def grid_components(self):
         self.frm_main_board.grid(row=0, column=0)
 
+    def piece_to_id(self, piece):
+        return "o" if piece.color == Color.WHITE else "x"
+
     def handle_square_btn(self, square, x, y):
-        print("TODO: Ask self.controller whether it's a legal move, and make it")
+        print(f"Clicked {x}, {y}")
+        for m in self.controller.legal_moves():
+            if m.tosq.to_tuple() == (x, y):
+                print("executing move", m)
+                actns, gameend = self.controller.move(m)
+                for a in actns:
+                    if a.fromsq is not None:
+                        # Not for tic tac toe
+                        self.move_piece(a.fromsq, a.tosq)
+                    else:
+                        self.set_piece(a.tosq, a.piece)
+                if gameend != None:
+                    print("Game ended!", gameend)
+                break
+        else:
+            print("Illegal move!!!")
 
 if __name__ == '__main__':
     from .. import variant
@@ -20,9 +39,11 @@ if __name__ == '__main__':
     controller = GameController(variant.TicTacToe(), None)
     board_view = TicTacToeBoardView(window, controller, scale, reverse=False)
     print(board_view.tk)
-    board_view.set_piece(1, 1, 'o')
-    board_view.set_piece(0, 1, 'x')
-    board_view.set_piece(2, 0, 'o')
+    o = Piece("P", Color.WHITE)
+    x = Piece("P", Color.BLACK)
+    board_view.set_piece((1, 1), o)
+    board_view.set_piece((0, 1), x)
+    board_view.set_piece((2, 0), o)
 
     board_view.pack()
     window.mainloop()
