@@ -27,15 +27,21 @@ class MainApplication(tk.Tk):
 
     def handle_play_btn(self, option):
         if option == "Standard":
-            self.start_menu.destroy()
+            self.start_variant("chess")
+        elif option == 'TicTacToe':
+            self.start_variant("tictactoe")
+
+    def start_variant(self, variant):
+        self.start_menu.destroy()
+        if variant == "chess":
             controller = GameController(Chess(), None)
             self.board_view = ChessBoardView(self, controller, (75, 75))
-            self.board_view.pack()
-        elif option == 'TicTacToe':
-            self.start_menu.destroy()
+        elif variant == "tictactoe":
             controller = GameController(TicTacToe(), None)
-            self.board_view = TicTacToeBoardView(self, controller, (120, 120))
-            self.board_view.pack()
+            self.board_view = TicTacToeBoardView(self, controller, (75, 75))
+        else:
+            raise ValueError("Unknown variant " + variant)
+        self.board_view.pack()
 
     def end_game(self):
         self.board_view.destroy()
@@ -45,5 +51,9 @@ class MainApplication(tk.Tk):
 
 
 if __name__ == "__main__":
+    import sys
     r = MainApplication()
+    if len(sys.argv) > 1:
+        variant = sys.argv[1]
+        r.start_variant(variant)
     r.mainloop()
