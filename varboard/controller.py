@@ -34,3 +34,6 @@ class GameController:
         moves = self.curmoves.copy()
         self.root()
         self.moves(moves)
+
+    def legal_moves(self) -> Iterator[Move]:
+        return self.variant.legal_moves(self.current.pos)
