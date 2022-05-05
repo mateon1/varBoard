@@ -4,11 +4,15 @@ import tkinter.messagebox
 from .widgets import PieceView
 from .BoardView import BoardView
 from ..variant import GameEndValue
+from varboard.GUI.promotion_window import PromotionWindow
+from varboard.state import Color
+
 
 class ChessBoardView(BoardView):
     def __init__(self, master, variant, square_scale, reverse=False, white_color='linen', black_color='saddle brown', *args, **kwargs):
         super().__init__(master, variant, square_scale, reverse, white_color, black_color, *args, **kwargs)
         self.last_clicked = None
+        self.promote_to = 'Q'
 
     def set_bars(self, reverse):
         self.frm_number_bar = tk.Frame(master=self)
@@ -74,12 +78,13 @@ class ChessBoardView(BoardView):
         if self.last_clicked:
             moves = [m for m in movesto if m.fromsq.to_tuple() == self.last_clicked]
         else:
-            if len(set(m.fromsq for m in movesto)) == 1: # Unique move to
-                self.domove(movesto[0])
-                return
-            elif len(set(m.tosq for m in movesfrom)) == 1: # unique move from
-                self.domove(movesfrom[0])
-                return
+            # if len(set(m.fromsq for m in movesto)) == 1: # Unique move to
+            #     self.domove(movesto[0])
+            #     return
+            # elif len(set(m.tosq for m in movesfrom)) == 1: # unique move from
+            #     self.domove(movesfrom[0])
+            #     return
+
             # first click, many options
             for m in movesfrom:
                 self.set_color(m.tosq, "pale green" if (m.tosq.rank + m.tosq.file)%2==1 else "lime green")
@@ -87,8 +92,20 @@ class ChessBoardView(BoardView):
                 self.last_clicked = (x, y)
             return
         if len(moves):
-            self.domove(moves[0])
+            # if promotion
+            if len(moves) > 1:
+                PromotionWindow(self, Color.from_ply(self.controller.current.pos.ply)).wait_window()
+
+                for move in moves:
+                    if move.intopiece.ty == self.promote_to:
+                        self.domove(move)
+                        break
+            else:
+                self.domove(moves[0])
         self.last_clicked = None
+
+    def handle_promotion(self, chosen_piece : str):
+        self.promote_to = chosen_piece
 
 
 if __name__ == '__main__':
