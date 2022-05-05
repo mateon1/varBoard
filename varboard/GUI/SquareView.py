@@ -3,11 +3,11 @@ import tkinter.messagebox
 
 
 class Square(tk.Frame):
-    def __init__(self, master, board_view, height, width, image=None):
+    def __init__(self, master, board_view, scale, image=None):
         def on_click(event):
             board_view.handle_square_btn(self)
 
-        super().__init__(master=master, height=height, width=width, relief='sunken', borderwidth=1)
+        super().__init__(master=master, height=scale[0], width=scale[1], relief='sunken', borderwidth=1)
         self.piece = None
         self.lbl_image = tk.Label(master=self, image=image, bg='linen')
         self.lbl_image.bind('<Button-1>', on_click)

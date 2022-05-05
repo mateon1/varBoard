@@ -4,16 +4,16 @@ from .PieceView import Piece
 
 
 class BoardView(tk.Frame):
-    def __init__(self, master, board, square_height, square_width, reverse=False, white_color='white', black_color='white', *args, **kwargs):
+    def __init__(self, master, variant, square_scale, reverse=False, white_color='white', black_color='white', *args, **kwargs):
         kwargs['relief'] = kwargs.get('relief', 'raised')
         kwargs['bd'] = kwargs.get('bd', 10)
         super().__init__(master, *args, **kwargs)
 
-        self.square_height = square_height
-        self.square_width = square_width
+        self.square_scale = square_scale
 
-        self.board_height = len(board)
-        self.board_width = len(board[0])
+        pos = variant.startpos()
+
+        self.board_height, self.board_width  = pos.bounds()
 
         self.white_color = white_color
         self.black_color = black_color
@@ -28,7 +28,7 @@ class BoardView(tk.Frame):
         # frame for main board with squares in grid
         self.frm_main_board = tk.Frame(master=self, relief=tk.RAISED, bd=6)
 
-        self.squares = [[Square(self.frm_main_board, self, square_height, square_width) for _ in range(self.board_width)]
+        self.squares = [[Square(self.frm_main_board, self, square_scale) for _ in range(self.board_width)]
                         for _ in range(self.board_height)]
 
         self.color_squares(reverse)

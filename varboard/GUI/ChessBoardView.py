@@ -6,10 +6,9 @@ from .PieceView import *
 
 
 class ChessBoardView(BoardView):
-    def __init__(self, master, board, square_height, square_width, reverse=False, white_color='linen', black_color='saddle brown', *args, **kwargs):
-        super().__init__(master, board, square_height, square_width, reverse, white_color, black_color, *args, **kwargs)
+    def __init__(self, master, variant, square_scale, reverse=False, white_color='linen', black_color='saddle brown', *args, **kwargs):
+        super().__init__(master, variant, square_scale, reverse, white_color, black_color, *args, **kwargs)
         self.last_pointed_square = self.squares[0][0]
-
 
     def set_bars(self, reverse):
         self.frm_number_bar = tk.Frame(master=self)

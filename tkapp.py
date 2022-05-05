@@ -1,4 +1,6 @@
 import tkinter as tk
+from varboard.variant import Chess
+from varboard.variant import TicTacToe
 from varboard.GUI.ChessBoardView import ChessBoardView
 from varboard.GUI.TicTacToeBoardView import TicTacToeBoardView
 from varboard.GUI.StartMenu import StartMenu
@@ -21,15 +23,15 @@ class MainApplication(tk.Tk):
         self.start_menu = StartMenu(master=self)
         self.start_menu.pack()
 
-    def handle_play_btn(self, variant):
-        if variant == "Standard":
+    def handle_play_btn(self, option):
+        if option == "Standard":
             self.start_menu.destroy()
-            board = [[None for _ in range(8)] for _ in range(8)]
-            ChessBoardView(self, board, 75, 75).pack()
-        elif variant == 'TicTacToe':
+            game = Chess()
+            ChessBoardView(self, game, (75, 75)).pack()
+        elif option == 'TicTacToe':
             self.start_menu.destroy()
-            board = [[None for _ in range(3)] for _ in range(3)]
-            TicTacToeBoardView(self, board, 75, 75).pack()
+            game = TicTacToe()
+            TicTacToeBoardView(self, game, (120, 120)).pack()
 
 if __name__ == "__main__":
     r = MainApplication()

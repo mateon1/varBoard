@@ -2,10 +2,10 @@ from .BoardView import *
 
 
 class TicTacToeBoardView(BoardView):
-    def __init__(self, master, board, square_height, square_width, reverse=False, white_color='white', black_color='white', *args, **kwargs):
-        super().__init__(master, board, square_height, square_width, reverse, white_color, black_color, *args, **kwargs)
-        self.o_piece = Piece('pieces/o.svg', (self.square_height-5, self.square_width-5))
-        self.x_piece = Piece('pieces/x.svg', (self.square_height-5, self.square_width-5))
+    def __init__(self, master, variant, square_scale, reverse=False, white_color='white', black_color='white', *args, **kwargs):
+        super().__init__(master, variant, square_scale, reverse, white_color, black_color, *args, **kwargs)
+        self.o_piece = Piece('pieces/o.svg', tuple(map(lambda i: i - 5, self.square_scale)))
+        self.x_piece = Piece('pieces/x.svg', tuple(map(lambda i: i - 5, self.square_scale)))
         self.o = True
 
     def grid_components(self):
