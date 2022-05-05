@@ -3,11 +3,11 @@
 -   [x] Select what to write the GUI in
     -   [x] Tkinter?
     -   [ ] Other UI?
--   [ ] Chessboard display
+-   [x] Chessboard display
     -   [ ] Allow setting up board state in some convenient way
-    -   [ ] Display variant pieces
+    -   [x] Display variant pieces
         -   [ ] Support custom piece-sets
-    -   [ ] Allow inputting moves (in a way that supports even weird
+    -   [x] Allow inputting moves (in a way that supports even weird
         variants like amazons)
         -   [ ] By drag-and-drop
         -   [ ] By clicking the from and to square
@@ -28,13 +28,13 @@
     -   [ ] Evaluation bar
 -   [ ] UCI Protocol
     -   [x] Connect to Fairy-Stockfish (or other engine)
-    -   [ ] Allow setting options
+    -   [x] Allow setting options
         -   [ ] While running
     -   [ ] Set up positions
-    -   [ ] Search positions
-        -   [ ] With proper time control info
-    -   [ ] Return bestmove results in a convenient format
-    -   [ ] Stop calculating
+    -   [x] Search positions
+        -   [x] With proper time control info
+    -   [x] Return bestmove results in a convenient format
+    -   [x] Stop calculating
 -   [ ] Other
     -   [ ] Save/load FEN
     -   [ ] Import/export PGN
