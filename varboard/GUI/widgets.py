@@ -17,12 +17,18 @@ class SquareView(tk.Frame):
         self.configure(bg=color)
 
 
+imagecache = {}
+
 class PieceView(tk.Label):
     @staticmethod
     def load_image(image_path: str, image_size: tuple[int, int]) -> Any:
-        img_data = cairosvg.svg2png(url=image_path, output_height=2048, output_width=2048)
-        img = Image.open(io.BytesIO(img_data))
-        img = img.resize(image_size, Image.ANTIALIAS)
+        if image_path in imagecache:
+            img = imagecache[image_path]
+        else:
+            img_data = cairosvg.svg2png(url=image_path, output_height=512, output_width=512)
+            img = Image.open(io.BytesIO(img_data))
+            img = img.resize(image_size, Image.ANTIALIAS)
+            imagecache[image_path] = img
         return ImageTk.PhotoImage(img)
 
     def __init__(self, master, board_view, image):
