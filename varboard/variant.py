@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Iterator, Optional
 import enum
-from state import PositionBuilder, Position, Square, BoardAction, Move, Piece, Color, HandType
+from .state import PositionBuilder, Position, Square, BoardAction, Move, Piece, Color, HandType
 
 
 class GameEndValue(enum.Enum):
