@@ -29,6 +29,12 @@ class Square:
     def __str__(self) -> str:
         return Square.FILES[self.file] + str(self.rank + 1)
 
+    def __eq__(self, other) -> bool:
+        return isinstance(other, Square) and self.rank == other.rank and self.file == other.file
+
+    def __hash__(self) -> int:
+        return hash(self.to_tuple())
+
     def to_tuple(self) -> Tuple[int, int]:
         return (self.file, self.rank)
 
@@ -235,14 +241,14 @@ class Move:
 
     def __repr__(self) -> str:
         if self.fromsq is None and self.tosq is not None and self.intopiece is not None:
-            return f"Move.drop_at({self.tosq!r}, {self.intopiece!r})"
+            return f"Move.drop_at({str(self.tosq)!r}, {self.intopiece!r})"
         if self.fromsq is not None and self.tosq is not None:
             if self.intopiece is not None:
-                return f"Move.move_promote({self.fromsq!r}, {self.tosq!r}, {self.intopiece!r})"
+                return f"Move.move_promote({str(self.fromsq)!r}, {str(self.tosq)!r}, {self.intopiece!r})"
             else:
-                return f"Move.move({self.fromsq!r}, {self.tosq!r})"
-        fromsq = self.fromsq
-        tosq = self.tosq
+                return f"Move.move({str(self.fromsq)!r}, {str(self.tosq)!r})"
+        fromsq = str(self.fromsq) if self.fromsq is not None else None
+        tosq = str(self.tosq) if self.tosq is not None else None
         intopiece = self.intopiece
         return f"Move({fromsq = !r}, {tosq = !r}, {intopiece = !r})"
 
