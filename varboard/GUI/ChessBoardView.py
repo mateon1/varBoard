@@ -3,11 +3,12 @@ import tkinter.messagebox
 
 from .widgets import PieceView
 from .BoardView import BoardView
+from ..variant import GameEndValue
 
 class ChessBoardView(BoardView):
     def __init__(self, master, variant, square_scale, reverse=False, white_color='linen', black_color='saddle brown', *args, **kwargs):
         super().__init__(master, variant, square_scale, reverse, white_color, black_color, *args, **kwargs)
-        self.last_pointed_square = self.squares[0][0]
+        self.last_clicked = None
 
     def set_bars(self, reverse):
         self.frm_number_bar = tk.Frame(master=self)
@@ -37,22 +38,57 @@ class ChessBoardView(BoardView):
         self.rowconfigure([0, 1], weight=1)
         self.columnconfigure([0, 1], weight=1)
 
+    def domove(self, move):
+        print("executing move", move)
+        actns, gameend = self.controller.move(move)
+        for a in actns:
+            print("  ", a)
+            if a.fromsq is not None:
+                self.move_piece(a.fromsq, a.tosq)
+            else:
+                self.set_piece(a.tosq, a.piece)
+        if gameend != None:
+            print("Game ended!", gameend)
+            print("moves:", " ".join(str(m) for m in self.controller.curmoves))
+            if gameend == GameEndValue.WHITE_WIN:
+                message = "White won!"
+            elif gameend == GameEndValue.BLACK_WIN:
+                message = "Black won!"
+            else:
+                message = "DRAW!"
+            tkinter.messagebox.showinfo("Game over", message)
+            self.master.end_game()
+
     def handle_square_btn(self, square, x, y):
-        print(f"Clicked {x}, {y}")
+        print(f"Clicked {x}, {y}, last {self.last_clicked}")
+        allmoves = []
+        movesto = []
+        movesfrom = []
         for m in self.controller.legal_moves():
-            if m.tosq.to_tuple() == (x, y):
-                print("executing move", m)
-                actns, gameend = self.controller.move(m)
-                for a in actns:
-                    if a.fromsq is not None:
-                        self.move_piece(a.fromsq, a.tosq)
-                    else:
-                        self.set_piece(a.tosq, a.piece)
-                if gameend != None:
-                    print("Game ended!", gameend)
-                break
+            allmoves.append(m)
+            if m.tosq.to_tuple() == (x, y): movesto.append(m)
+            if m.fromsq.to_tuple() == (x, y): movesfrom.append(m)
+        for sq in set(m.tosq for m in allmoves):
+            self.set_color(sq, None)
+        moves = []
+        if self.last_clicked:
+            moves = [m for m in movesto if m.fromsq.to_tuple() == self.last_clicked]
         else:
-            print("Illegal move!!!")
+            if len(set(m.fromsq for m in movesto)) == 1: # Unique move to
+                self.domove(movesto[0])
+                return
+            elif len(set(m.tosq for m in movesfrom)) == 1: # unique move from
+                self.domove(movesfrom[0])
+                return
+            # first click, many options
+            for m in movesfrom:
+                self.set_color(m.tosq, "pale green" if (m.tosq.rank + m.tosq.file)%2==1 else "lime green")
+            if len(movesfrom) > 0:
+                self.last_clicked = (x, y)
+            return
+        if len(moves):
+            self.domove(moves[0])
+        self.last_clicked = None
 
 
 if __name__ == '__main__':

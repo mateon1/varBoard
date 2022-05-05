@@ -68,6 +68,13 @@ class BoardView(tk.Frame):
     def piece_to_id(self, piece):
         return piece.color.value + piece.ty
 
+    def set_color(self, pos, color):
+        pos = pos if isinstance(pos, tuple) else pos.to_tuple()
+        if color is None: color = self.color_for(*pos)
+        if pos in self.pieces:
+            self.pieces[pos].set_color(color)
+        self.squares[~pos[1]][pos[0]].set_color(color)
+
     def set_piece(self, pos, piece):
         pos = pos if isinstance(pos, tuple) else pos.to_tuple()
         old = self.pieces.get(pos)
