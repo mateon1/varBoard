@@ -45,7 +45,6 @@ class ChessBoardView(BoardView):
                 actns, gameend = self.controller.move(m)
                 for a in actns:
                     if a.fromsq is not None:
-                        # Not for tic tac toe
                         self.move_piece(a.fromsq, a.tosq)
                     else:
                         self.set_piece(a.tosq, a.piece)
