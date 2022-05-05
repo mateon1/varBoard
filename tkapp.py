@@ -23,16 +23,26 @@ class MainApplication(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.start_menu = StartMenu(master=self)
         self.start_menu.pack()
+        self.board_view = None
 
     def handle_play_btn(self, option):
         if option == "Standard":
             self.start_menu.destroy()
             controller = GameController(Chess(), None)
-            ChessBoardView(self, controller, (75, 75)).pack()
+            self.board_view = ChessBoardView(self, controller, (75, 75))
+            self.board_view.pack()
         elif option == 'TicTacToe':
             self.start_menu.destroy()
             controller = GameController(TicTacToe(), None)
-            TicTacToeBoardView(self, controller, (120, 120)).pack()
+            self.board_view = TicTacToeBoardView(self, controller, (120, 120))
+            self.board_view.pack()
+
+    def end_game(self):
+        self.board_view.destroy()
+        self.start_menu = StartMenu(master=self)
+        self.start_menu.pack()
+
+
 
 if __name__ == "__main__":
     r = MainApplication()
