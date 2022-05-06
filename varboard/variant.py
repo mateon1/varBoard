@@ -14,6 +14,17 @@ class GameEndValue(enum.Enum):
         return GameEndValue(1 if color == Color.WHITE else -1)
 
 
+def get_kingsq(pos: Position, my: Color) -> tuple[Square, Square]:
+    my_ksq = None
+    opp_ksq = None
+    for sq, p in pos.pieces_iter():
+        if p.ty == "K":
+            if p.color == my:
+                my_ksq = sq
+            else:
+                opp_ksq = sq
+    return my_ksq, opp_ksq
+
 class Variant:
     """
     This class is the base class for each game variant.
@@ -224,14 +235,14 @@ class Chess(Variant):
                     yield sq
                 elif pos.get_extra("ep") == sq:
                     yield sq
-            if ox < W-1:
+            if ox < W - 1:
                 sq = upsq.offset(1, 0)
                 p = pos.get_piece(sq)
                 if p is not None and p.color == ~my:
                     yield sq
                 elif pos.get_extra("ep") == sq:
                     yield sq
-            return # early return, do not handle pawn-like variant pieces
+            return  # early return, do not handle pawn-like variant pieces
         if self.can_move(piece, "N"):
             for m in range(8):
                 x, y = 1, 2
@@ -285,9 +296,9 @@ class Chess(Variant):
             break
         else:
             # no legal moves
-            if self.is_in_check(pos, Color.from_ply(pos.ply)): # Checkmate
+            if self.is_in_check(pos, Color.from_ply(pos.ply)):  # Checkmate
                 return GameEndValue.win_for(~Color.from_ply(pos.ply))
-            else: # Stalemate
+            else:  # Stalemate
                 return GameEndValue.DRAW
 
         return None
@@ -318,7 +329,7 @@ class Chess(Variant):
                 # Does move lead to our king being threatened?
                 probepos, _ = self.execute_move(pos, Move.move(sq, tsq))
                 if self.is_in_check(probepos, my):
-                    continue # if so, prune the move
+                    continue  # if so, prune the move
 
                 # handle promotion case
                 if p.ty == "P" and tsq.rank in {0, 7}:
@@ -333,14 +344,14 @@ class Chess(Variant):
     def execute_move(self, pos: Position, move: Move) -> tuple[Position, list[BoardAction]]:
         # TODO: 50mr counters
         maybepos, actions = super().execute_move(pos, move)
-        nextpos = PositionBuilder.from_position(maybepos).extra("ep", None) # Lose en passant rights
+        nextpos = PositionBuilder.from_position(maybepos).extra("ep", None)  # Lose en passant rights
         if move.fromsq is not None:
             fromsq = move.fromsq
-        else: # piece drop or null move, let the generic impl handle it
+        else:  # piece drop or null move, let the generic impl handle it
             return nextpos.build(), actions
         piece = pos.get_piece(fromsq)
         assert piece is not None
-        if piece.ty in "NBQ": # "simple" piece type
+        if piece.ty in "NBQ":  # "simple" piece type
             return nextpos.build(), actions
         my = piece.color
         forwardy = 1 if my == Color.WHITE else -1
@@ -379,7 +390,7 @@ class Chess(Variant):
             nextpos.extra("castle", (castlew, castleb))
             return nextpos.build(), actions
         if piece.ty == "R":
-            if fromsq.rank == homerank and fromsq.file in {0, 7}: # TODO: Chess960
+            if fromsq.rank == homerank and fromsq.file in {0, 7}:  # TODO: Chess960
                 if my == Color.WHITE:
                     castlew &= ~(Chess.CASTLE_LONG if fromsq.file == 0 else Chess.CASTLE_SHORT)
                 else:
@@ -387,3 +398,53 @@ class Chess(Variant):
                 nextpos.extra("castle", (castlew, castleb))
             return nextpos.build(), actions
         raise ValueError(f"Bad piece {piece!r}")
+
+
+class RacingKings(Chess):
+    def startpos(self) -> Position:
+        b = PositionBuilder((8, 8), 0)
+        for x, p in enumerate("xRBN"):
+            for rank in range(2):
+                ty = p
+                if ty == "x":
+                    ty = "QK"[rank]
+                b.piece(Square(file=7 - x, rank=rank), Piece(ty, Color.WHITE))
+                b.piece(Square(file=x, rank=rank), Piece(ty, Color.BLACK))
+        b.extra("castle", (0, 0))
+        b.extra("ep", None)
+        return b.build()
+
+    def game_value(self, startpos: Position, moves: Iterable[Move]) -> Optional[GameEndValue]:
+        positions = [startpos]
+        for m in moves:
+            p, _ = self.execute_move(positions[-1], m)
+            positions.append(p)
+        pos = positions[-1]
+        my = Color.from_ply(pos.ply)
+        my_ksq, opp_ksq = get_kingsq(pos, my)
+
+        if my_ksq.rank == 7 and opp_ksq.rank == 7:
+            return GameEndValue.DRAW
+
+        if my_ksq.rank == 7:
+            return GameEndValue.win_for(my)
+
+        if opp_ksq.rank == 7 and my_ksq.rank < 6:  # If we're one tile behind we can still force a draw
+            return GameEndValue.win_for(~my)
+
+        return None
+
+    def legal_moves(self, pos: Position) -> Iterator[Move]:
+        my = Color.from_ply(pos.ply)
+        my_ksq, opp_ksq = get_kingsq(pos, my)
+        assert my_ksq is not None
+        assert opp_ksq is not None
+        if my_ksq.rank == 7: return
+        if opp_ksq.rank == 7 and my_ksq.rank < 6: return
+
+        for m in super().legal_moves(pos):
+            # Does move lead to checking other king?
+            probepos, _ = self.execute_move(pos, m)
+            if self.is_in_check(probepos, ~my):
+                continue  # if so, prune the move
+            yield m

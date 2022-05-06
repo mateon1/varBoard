@@ -19,7 +19,7 @@ class StartMenu(tk.Frame):
         # # variant OptionMenu
         self.variant_value_inside = tk.StringVar(self.variant_frm)
         self.variant_value_inside.set("Select a variant")
-        self.variants = ["Standard", "TicTacToe"]
+        self.variants = ["Standard", "Racing Kings", "TicTacToe"]
         self.variant_om = tk.OptionMenu(self.variant_frm, self.variant_value_inside, *self.variants)
         self.variant_om.config(font=("Courier", 12))
         self.variant_om.pack()
