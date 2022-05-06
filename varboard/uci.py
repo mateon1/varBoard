@@ -191,9 +191,7 @@ class UCIEngine:
         print(self.uci_ready_queue.get())
         self.send_command("isready")
         print(self.uci_ready_queue.get())
-        self.send_command("quit")
-        self.engine_process.wait()
-        self.reader_thread.join()
+        self.close_wait()
 
     def option_set(self, option: str, value: Union[None, int, str, bool]) -> None:
         ctx = self.uci_options.get(option)
@@ -248,6 +246,15 @@ class UCIEngine:
         self.engine_process.wait()
         self.close()
 
+    def close_wait(self) -> None:
+        if self.running:
+            self.send_command("quit")
+            assert self.engine_process is not None
+            assert self.reader_thread is not None
+            self.engine_process.wait()
+            self.reader_thread.join()
+        self.close()
+
     def close(self) -> None:
         self.engine_process = None
         self.reader_thread = None
@@ -284,9 +291,7 @@ if __name__ == "__main__": # TEMPORARY - for testing
     uci.send_command("load ../Stockfish/releases/variants.ini")
     uci.send_command("uci")
     print(uci.uci_ready_queue.get())
-    uci.send_command("quit")
-    uci.engine_process.wait()
-    uci.reader_thread.join()
+    uci.close_wait()
 
     print("variants", uci.uci_options["UCI_Variant"]["var"])
 

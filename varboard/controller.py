@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Iterator
 
 from varboard.state import Position, GameTree, Move, BoardAction
 from varboard.variant import Variant, GameEndValue

@@ -29,7 +29,7 @@ class Square:
     def __str__(self) -> str:
         return Square.FILES[self.file] + str(self.rank + 1)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, Square) and self.rank == other.rank and self.file == other.file
 
     def __hash__(self) -> int:

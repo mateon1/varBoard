@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterator, Optional
+from typing import Iterator, Iterable, Optional
 import enum
 from .state import PositionBuilder, Position, Square, BoardAction, Move, Piece, Color, HandType
 
@@ -40,7 +40,7 @@ class Variant:
         """
         raise TypeError("Called startpos on Variant base type")
 
-    def game_value(self, startpos: Position, moves: Iterator[Move]) -> Optional[GameEndValue]:
+    def game_value(self, startpos: Position, moves: Iterable[Move]) -> Optional[GameEndValue]:
         """
         Calculates the game's value, if finished, otherwise returns None.
         Prefer to pass a starting position and move sequence to allow implementing rules like three-fold repetition.
@@ -273,7 +273,7 @@ class Chess(Variant):
                         yield cur
                     break
 
-    def game_value(self, startpos: Position, moves: Iterator[Move]) -> Optional[GameEndValue]:
+    def game_value(self, startpos: Position, moves: Iterable[Move]) -> Optional[GameEndValue]:
         # TODO: Check 50mr, draw
         # TODO: Check 3fr, draw
         positions = [startpos]
