@@ -132,6 +132,10 @@ class UCIEngine:
         self.uci_move_queue = queue.SimpleQueue[CommandData]()
         self.uci_scores: list[Optional[Context]] = [None]
 
+        self.uci_set_options: dict[str, str] = {}
+
+        self.probe_engine()
+
     def process_line(self, line: bytes) -> None:
         #print("-----")
         #print(line.strip().decode("utf-8"))
@@ -155,14 +159,13 @@ class UCIEngine:
                 continue
             #print("field", field, ctx)
             field_parse = fields[field]
-            if type(field_parse) is set:
+            if isinstance(field_parse, set):
                 rawval, rest = take_word(rest)
                 val = rawval.decode("utf-8")
                 if val not in field_parse:
                     print(f"Bad field value: {field} {val}")
                     # allow it to continue parsing anyway, maybe we'll get something useful
             else:
-                assert isinstance(field_parse, function)
                 val, rest = field_parse(rest, ctx)
             ctx[field] = val
 
@@ -182,6 +185,61 @@ class UCIEngine:
         else:
             print("Unhandled command:", cmd)
 
+    def probe_engine(self) -> None:
+        self.start()
+        self.send_command("uci")
+        print(self.uci_ready_queue.get())
+        self.send_command("isready")
+        print(self.uci_ready_queue.get())
+        self.send_command("quit")
+        self.engine_process.wait()
+        self.reader_thread.join()
+
+    def option_set(self, option: str, value: Union[None, int, str, bool]) -> None:
+        ctx = self.uci_options.get(option)
+        if ctx is None:
+            raise ValueError("Invalid option " + option)
+        if ctx["type"] == "button":
+            assert self.running
+            uci.send_command("setoption name " + option)
+            return
+        if ctx["type"] == "check":
+            assert isinstance(value, bool)
+            self.uci_set_options[option] = "true" if value else "false"
+        elif ctx["type"] == "spin":
+            assert isinstance(value, int)
+            assert ctx["min"] <= value <= ctx["max"]
+            self.uci_set_options[option] = str(value)
+        elif ctx["type"] == "combo":
+            assert isinstance(value, str)
+            assert value in ctx["var"]
+            self.uci_set_options[option] = value
+        else:
+            assert ctx["type"] == "string"
+            assert isinstance(value, str)
+            self.uci_set_options[option] = value
+        if self.running:
+            self.send_command(f"setoption name {option} value {self.uci_set_options[option]}")
+
+    def option_unset(self, option: str) -> None:
+        ctx = self.uci_options.get(option)
+        if ctx is None:
+            raise ValueError("Invalid option " + option)
+        assert ctx["type"] != "button"
+        if option in self.uci_set_options:
+            del self.uci_set_options[option]
+            if self.running:
+                default = ctx.get("default")
+                self.send_command(f"setoption name {option} value {default}")
+
+    def send_initial(self) -> None:
+        uci.send_command("uci")
+        print(uci.uci_ready_queue.get())
+        for opt, val in self.uci_set_options.items():
+            uci.send_command(f"setoption name {opt} value {val}")
+        uci.send_command("isready")
+        print(uci.uci_ready_queue.get())
+
     def reader(self, pipe: Iterator[bytes]) -> None:
         assert self.engine_process is not None
         for l in pipe:
@@ -193,6 +251,7 @@ class UCIEngine:
     def close(self) -> None:
         self.engine_process = None
         self.reader_thread = None
+        self.running = False
 
     def start(self) -> None:
         assert self.engine_process is None
@@ -225,21 +284,24 @@ if __name__ == "__main__": # TEMPORARY - for testing
     uci.send_command("load ../Stockfish/releases/variants.ini")
     uci.send_command("uci")
     print(uci.uci_ready_queue.get())
+    uci.send_command("quit")
+    uci.engine_process.wait()
+    uci.reader_thread.join()
+
     print("variants", uci.uci_options["UCI_Variant"]["var"])
-    #uci.send_command("setoption name UCI_Variant value racingkings")
-    #uci.send_command("setoption name UCI_Variant value placement")
-    #uci.send_command("setoption name UCI_Variant value horde")
+
     if len(sys.argv) > 1:
-        print(f"setoption name UCI_Variant value {sys.argv[1]}")
-        uci.send_command(f"setoption name UCI_Variant value {sys.argv[1]}")
+        uci.option_set("UCI_Variant", sys.argv[1])
     if len(sys.argv) > 2:
-        print(f"setoption name EvalFile value {sys.argv[2]}")
-        uci.send_command(f"setoption name EvalFile value {sys.argv[2]}")
-    #uci.send_command("setoption name Hash value 4096")
-    uci.send_command("setoption name Hash value 128")
-    uci.send_command("setoption name Threads value 36")
-    uci.send_command("isready")
-    print(uci.uci_ready_queue.get())
+        uci.option_set("EvalFile", sys.argv[2])
+
+    uci.option_set("Hash", 128)
+    uci.option_set("Threads", 32)
+
+    uci.start()
+    uci.send_command("load ../Stockfish/releases/variants.ini")
+    uci.send_initial()
+
     #for ts, l in uci.log:
     #    if not "option" in l: continue
     #    print(f"{ts:.6f} {l.strip()}")
@@ -254,10 +316,11 @@ if __name__ == "__main__": # TEMPORARY - for testing
                 _ = uci.uci_info_queue.get(timeout=0.1)
                 info = uci.uci_scores[0]
                 score = info["score"] if info is not None else "???"
+                depth = "%3d" % info["depth"] if info is not None else "???"
                 est = round((time.time() - start)*1000)
                 wt = wtime - (0 if cur_i & 1 else est)
                 bt = btime - (est if cur_i & 1 else 0)
-                print(f"{cur_i:3d}/200 ...{' '.join(moves[-5:])} time w{wt:6d} b{bt:6d} score {score}   ", end="\r")
+                print(f"{cur_i:3d}/200 ...{' '.join(moves[-5:])} time w{wt:6d} b{bt:6d} depth {depth} score {score}  ", end="\r")
             except queue.Empty:
                 pass
     info_thread = threading.Thread(target=info_thread_fn)
@@ -265,8 +328,8 @@ if __name__ == "__main__": # TEMPORARY - for testing
     for game in range(500):
         print(f"===== GAME #{game+1} =====")
         moves = []
-        wtime = btime = 2000
-        winc = binc = 500
+        wtime = btime = 15000
+        winc = binc = 200
         for i in range(200):
             cur_i = i
             info = {} if i == 0 else uci.uci_scores[0]
