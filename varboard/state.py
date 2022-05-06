@@ -105,7 +105,7 @@ class PositionBuilder:
         Sets a piece of arbitrary data for this position, used for things like the 50-move timer, pieces in hand, en passant, etc.
         The data must be of an immutable and hashable type.
         """
-        assert hash(data)
+        _ = hash(data)
         self._extra[prop] = data
         return self
 
