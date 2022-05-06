@@ -301,6 +301,19 @@ class Chess(Variant):
             else:  # Stalemate
                 return GameEndValue.DRAW
 
+        # Insufficient material check
+        wmaterial = sorted([p.ty for _, p in pos.pieces_iter(Color.WHITE)])
+        bmaterial = sorted([p.ty for _, p in pos.pieces_iter(Color.BLACK)])
+
+        if len(wmaterial) == 1 or len(bmaterial) == 1:
+            omaterial = wmaterial if len(wmaterial) > 1 else bmaterial
+            if len(omaterial) == 1:
+                return GameEndValue.DRAW
+            if len(omaterial) == 2 and set(omaterial) == {"K", "B"}:
+                return GameEndValue.DRAW
+            if len(omaterial) == 2 and set(omaterial) == {"K", "N"}:
+                return GameEndValue.DRAW
+
         return None
 
     def is_in_check(self, pos: Position, color: Color) -> bool:
