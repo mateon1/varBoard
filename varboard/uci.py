@@ -2,7 +2,7 @@ import queue
 import subprocess
 import threading
 import time
-from typing import Optional, Union, Iterator, Iterable, Callable, IO, Any
+from typing import Optional, Union, Iterator, Iterable, Callable, IO, Any, TypeVar
 
 # Types:
 function = type(lambda: 0)
@@ -118,6 +118,15 @@ UCI_FIELDS: dict[str, dict[str, Union[Parser, set[str]]]] = {
     },
 }
 
+# Windows sucks, so ^C cannot interrupt queue.get(). This is the workaround
+T = TypeVar("T")
+def get_interruptible(q: queue.SimpleQueue[T]) -> T:
+    while True:
+        try:
+            return q.get(timeout=0.2)
+        except queue.Empty:
+            pass
+
 class UCIEngine:
     def __init__(self, path: str, extra_args: Iterable[str] = ()):
         self.path: str = path
@@ -125,6 +134,7 @@ class UCIEngine:
         self.engine_process: Optional[subprocess.Popen[bytes]] = None
         self.reader_thread: Optional[threading.Thread] = None
         self.log: list[tuple[float, str]] = []
+        self.running: bool = False
 
         self.uci_options: dict[str, Context] = {}
         self.uci_ready_queue = queue.SimpleQueue[CommandData]()
@@ -188,9 +198,9 @@ class UCIEngine:
     def probe_engine(self) -> None:
         self.start()
         self.send_command("uci")
-        print(self.uci_ready_queue.get())
+        print(get_interruptible(self.uci_ready_queue))
         self.send_command("isready")
-        print(self.uci_ready_queue.get())
+        print(get_interruptible(self.uci_ready_queue))
         self.close_wait()
 
     def option_set(self, option: str, value: Union[None, int, str, bool]) -> None:
@@ -232,18 +242,22 @@ class UCIEngine:
 
     def send_initial(self) -> None:
         uci.send_command("uci")
-        print(uci.uci_ready_queue.get())
+        print(get_interruptible(self.uci_ready_queue))
         for opt, val in self.uci_set_options.items():
             uci.send_command(f"setoption name {opt} value {val}")
         uci.send_command("isready")
-        print(uci.uci_ready_queue.get())
+        print(get_interruptible(self.uci_ready_queue))
 
     def reader(self, pipe: Iterator[bytes]) -> None:
         assert self.engine_process is not None
-        for l in pipe:
-            self.log.append((time.time(), l.decode("utf-8")))
-            self.process_line(l)
-        self.engine_process.wait()
+        try:
+            for l in pipe:
+                self.log.append((time.time(), l.decode("utf-8")))
+                self.process_line(l)
+            self.engine_process.wait()
+        except KeyboardInterrupt:
+            self.close()
+            raise
         self.close()
 
     def close_wait(self) -> None:
@@ -251,11 +265,14 @@ class UCIEngine:
             self.send_command("quit")
             assert self.engine_process is not None
             assert self.reader_thread is not None
-            self.engine_process.wait()
             self.reader_thread.join()
         self.close()
 
     def close(self) -> None:
+        if self.engine_process:
+            self.engine_process.terminate()
+            self.engine_process.wait(5.0)
+            self.engine_process.kill()
         self.engine_process = None
         self.reader_thread = None
         self.running = False
@@ -272,7 +289,7 @@ class UCIEngine:
         assert subproc.stdout is not None
         stdout = subproc.stdout
         self.reader_thread = threading.Thread(target=lambda: self.reader(stdout))
-        self.reader_thread.setName("UCI Reader " + self.reader_thread.name)
+        self.reader_thread.name = "UCI Reader " + self.reader_thread.name
         self.reader_thread.start()
         self.running = True
 
@@ -286,11 +303,13 @@ if __name__ == "__main__": # TEMPORARY - for testing
     import sys
     print(sys.argv)
     FISH = "/home/mateon/shared/dev/Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
+    FISH = "./fairy-stockfish-largeboard_x86-64-bmi2.exe"
     uci = UCIEngine(FISH)
     uci.start()
-    uci.send_command("load ../Stockfish/releases/variants.ini")
+    #uci.send_command("load ../Stockfish/releases/variants.ini")
+    uci.send_command("load ../Fairy-Stockfish/src/variants.ini")
     uci.send_command("uci")
-    print(uci.uci_ready_queue.get())
+    print(get_interruptible(uci.uci_ready_queue))
     uci.close_wait()
 
     print("variants", uci.uci_options["UCI_Variant"]["var"])
@@ -304,7 +323,8 @@ if __name__ == "__main__": # TEMPORARY - for testing
     uci.option_set("Threads", 32)
 
     uci.start()
-    uci.send_command("load ../Stockfish/releases/variants.ini")
+    #uci.send_command("load ../Stockfish/releases/variants.ini")
+    uci.send_command("load ../Fairy-Stockfish/src/variants.ini")
     uci.send_initial()
 
     #for ts, l in uci.log:
@@ -328,8 +348,8 @@ if __name__ == "__main__": # TEMPORARY - for testing
                 print(f"{cur_i:3d}/200 ...{' '.join(moves[-5:])} time w{wt:6d} b{bt:6d} depth {depth} score {score}  ", end="\r")
             except queue.Empty:
                 pass
-    info_thread = threading.Thread(target=info_thread_fn)
-    info_thread.start()
+    #info_thread = threading.Thread(target=info_thread_fn)
+    #info_thread.start()
     for game in range(500):
         print(f"===== GAME #{game+1} =====")
         moves = []
@@ -343,7 +363,7 @@ if __name__ == "__main__": # TEMPORARY - for testing
             #uci.send_command("go movetime 1000")
             uci.send_command(f"go wtime {wtime} btime {btime} winc {winc} binc {binc}")
             start = time.time()
-            _, move = uci.uci_move_queue.get()
+            _, move = get_interruptible(uci.uci_move_queue)
             dur = round((time.time() - start) * 1000)
             if move["bestmove"] == "(none)": break
             if i&1 == 0:
@@ -358,7 +378,5 @@ if __name__ == "__main__": # TEMPORARY - for testing
         print()
         print(moves)
         print(uci.log[-2])
-    assert uci.reader_thread is not None
-    uci.send_command("quit")
-    uci.reader_thread.join()
-    info_thread.join()
+    uci.close_wait()
+    #info_thread.join()
