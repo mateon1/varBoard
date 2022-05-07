@@ -1,30 +1,22 @@
 import tkinter as tk
 from varboard.variant import Chess, TicTacToe, RacingKings
 from varboard.controller import GameController
-from varboard.gui.board_view.chess import ChessBoardView
-from varboard.gui.board_view.tictactoe import TicTacToeBoardView
+from varboard.gui.board_view import ChessBoardView, TicTacToeBoardView
 from varboard.gui.start_menu import StartMenu
-from typing import Any
 
+from typing import Any, Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from varboard.gui.board_view import BoardView
 
-class MainApplication(tk.Frame):
-    def __init__(self, parent: Any, *args: Any, **kwargs: Any):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-
-
-# import varboard.gui.ChessBoardView as cbv
-# import varboard.gui.PieceView as PieceView
-# from varboard.gui.PieceView import PieceView
 
 class MainApplication(tk.Tk):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         tk.Tk.__init__(self, *args, **kwargs)
         self.start_menu = StartMenu(master=self)
         self.start_menu.pack()
-        self.board_view = None
+        self.board_view: Optional[BoardView] = None
 
-    def handle_play_btn(self, option):
+    def handle_play_btn(self, option: str) -> None:
         if option == "Standard":
             self.start_variant("chess")
         elif option == "TicTacToe":
@@ -32,7 +24,7 @@ class MainApplication(tk.Tk):
         elif option == "Racing Kings":
             self.start_variant("racingkings")
 
-    def start_variant(self, variant):
+    def start_variant(self, variant: str) -> None:
         self.start_menu.destroy()
         if variant == "chess":
             controller = GameController(Chess(), None)
@@ -47,8 +39,10 @@ class MainApplication(tk.Tk):
             raise ValueError("Unknown variant " + variant)
         self.board_view.pack()
 
-    def end_game(self):
+    def end_game(self) -> None:
+        assert self.board_view is not None
         self.board_view.destroy()
+        self.board_view = None
         self.start_menu = StartMenu(master=self)
         self.start_menu.pack()
 

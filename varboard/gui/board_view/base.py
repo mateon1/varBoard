@@ -91,7 +91,7 @@ class BoardView(tk.Frame):
             self.pieces[sq].set_color(color)
         self.squares[~sq[1]][sq[0]].set_color(color)
 
-    def _set_piece(self, pos, piece):
+    def _set_piece(self, pos: tuple[int, int], piece: PieceView) -> None:
         self.pieces[pos] = piece
         self.pieces[pos].set_xy(*pos)
         self.pieces[pos].grid(row=(self.board_height - pos[1] - 1), column=pos[0], sticky='NESW', padx=(0, 0),

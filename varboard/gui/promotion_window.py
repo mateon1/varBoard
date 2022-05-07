@@ -44,10 +44,10 @@ if __name__ == '__main__':
 
 
     class MockBoardView:
-        def piece_to_id(self, p):
-            return BoardView.piece_to_id(self, p)
+        def piece_to_id(self, p: Piece) -> str:
+            return BoardView.piece_to_id(self, p)  # type: ignore
 
-        def select_promotion(self, p):
+        def select_promotion(self, p: Piece) -> None:
             print("Selected promotion piece:", p)
 
 

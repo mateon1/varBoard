@@ -13,11 +13,8 @@ if TYPE_CHECKING:
 
 class SquareView(tk.Frame):
     def __init__(self, master: Any, board_view: BoardView, height: int, width: int, x: int, y: int):
-        def on_click(event):
-            board_view.handle_square_btn(self, x, y)
-
         super().__init__(master=master, height=height + 2, width=width + 2, relief='sunken', borderwidth=1)
-        self.bind('<Button-1>', on_click)
+        self.bind('<Button-1>', lambda event: board_view.handle_square_btn(self, x, y))
 
     def set_color(self, color: str) -> None:
         self.configure(bg=color)
