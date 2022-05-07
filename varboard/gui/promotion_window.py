@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import tkinter as tk
+from typing import TYPE_CHECKING
+
 from .widgets import PieceView, SquareView
 
-from typing import Any, Union, TYPE_CHECKING
 if TYPE_CHECKING:
-    from .ChessBoardView import ChessBoardView
+    from .board_view import ChessBoardView
     from ..state import Piece
+
 
 class PromotionWindow(tk.Toplevel):
     def __init__(self, board_view: ChessBoardView, selection: list[Piece]):
@@ -15,7 +17,7 @@ class PromotionWindow(tk.Toplevel):
         self.board_view = board_view
 
         self.title('Promotion')
-        #self.geometry('350x90')
+        # self.geometry('350x90')
 
         self.frm = tk.Frame(self)
         self.frm.pack()
@@ -38,6 +40,9 @@ class PromotionWindow(tk.Toplevel):
 
 if __name__ == '__main__':
     from ..state import Color, Piece
+    from .board_view import BoardView
+
+
     class MockBoardView:
         def piece_to_id(self, p):
             return BoardView.piece_to_id(self, p)
@@ -45,7 +50,6 @@ if __name__ == '__main__':
         def select_promotion(self, p):
             print("Selected promotion piece:", p)
 
-    root = PromotionWindow(MockBoardView(), [Piece(ty, Color.WHITE) for ty in "QNRB"]) # type: ignore
+
+    root = PromotionWindow(MockBoardView(), [Piece(ty, Color.WHITE) for ty in "QNRB"])  # type: ignore
     root.mainloop()
-
-

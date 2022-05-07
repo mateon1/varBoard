@@ -1,6 +1,7 @@
 import tkinter as tk
 from typing import Any
 
+
 class StartMenu(tk.Frame):
     def __init__(self, *args: Any, **kargs: Any):
         super().__init__(*args, **kargs)

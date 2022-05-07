@@ -1,17 +1,8 @@
 from __future__ import annotations
+
 from typing import Iterator, Iterable, Optional
-import enum
-from .state import PositionBuilder, Position, Square, BoardAction, Move, Piece, Color, HandType
 
-
-class GameEndValue(enum.Enum):
-    WHITE_WIN = 1
-    BLACK_WIN = -1
-    DRAW = 0
-
-    @staticmethod
-    def win_for(color: Color) -> GameEndValue:
-        return GameEndValue(1 if color == Color.WHITE else -1)
+from .state import PositionBuilder, Position, Square, BoardAction, Move, Piece, Color, HandType, GameEndValue
 
 
 def get_kingsq(pos: Position, my: Color) -> tuple[Square, Square]:
@@ -26,6 +17,7 @@ def get_kingsq(pos: Position, my: Color) -> tuple[Square, Square]:
     assert my_ksq is not None
     assert opp_ksq is not None
     return my_ksq, opp_ksq
+
 
 class Variant:
     """

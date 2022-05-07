@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Optional, Union, Tuple, List, Dict, Iterator, Any
+
 import enum
+from typing import Optional, Union, Tuple, List, Dict, Iterator, Any
 
 
 class Square:
@@ -49,6 +50,16 @@ class Color(enum.Enum):
 
     def __invert__(self) -> Color:
         return Color.BLACK if self == Color.WHITE else Color.WHITE
+
+
+class GameEndValue(enum.Enum):
+    WHITE_WIN = 1
+    BLACK_WIN = -1
+    DRAW = 0
+
+    @staticmethod
+    def win_for(color: Color) -> GameEndValue:
+        return GameEndValue(1 if color == Color.WHITE else -1)
 
 
 class Piece:
@@ -251,27 +262,3 @@ class Move:
         tosq = str(self.tosq) if self.tosq is not None else None
         intopiece = self.intopiece
         return f"Move({fromsq = !r}, {tosq = !r}, {intopiece = !r})"
-
-
-class GameTree:
-    def __init__(self, current: Position):
-        self.pos = current
-        self.next_moves: Dict[Move, GameTree] = {}
-        self.extra: Dict[str, Any] = {}
-        self.pv_move: Optional[Move] = None
-
-    def add_move(self, move: Move, to: Position) -> None:
-        self.next_moves[move] = GameTree(to)
-        if self.pv_move is None:
-            self.pv_move = move
-
-    def set_pv_move(self, move: Move) -> None:
-        self.pv_move = move
-
-    def set_extra(self, prop: str, data: Any) -> None:
-        self.extra[prop] = data
-
-    def get_extra(self, prop: str) -> Any:
-        return self.extra.get(prop)
-
-

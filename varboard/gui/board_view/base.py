@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import tkinter as tk
-from .widgets import SquareView, PieceView
+import tkinter.messagebox
+from ..widgets import SquareView, PieceView
+from ...state import GameEndValue
 
-from typing import Collection, Any, Union, Optional, TYPE_CHECKING
+from typing import Any, Union, Optional, TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from ..controller import GameController
-    from ..state import Piece, Color, Square
+    from ...controller import GameController
+    from ...state import Piece, Square
+
 
 class BoardView(tk.Frame):
-    def __init__(self, master: Any, controller: GameController, square_scale: tuple[int, int], reverse: bool = False, white_color: str = 'white', black_color: str = 'white', *args: Any, **kwargs: Any):
+    def __init__(self, master: Any, controller: GameController, square_scale: tuple[int, int], reverse: bool = False,
+                 white_color: str = 'white', black_color: str = 'white', *args: Any, **kwargs: Any):
         kwargs['relief'] = kwargs.get('relief', 'raised')
         kwargs['bd'] = kwargs.get('bd', 10)
         super().__init__(master, *args, **kwargs)
@@ -38,8 +43,10 @@ class BoardView(tk.Frame):
         # frame for main board with squares in grid
         self.frm_main_board = tk.Frame(master=self, relief=tk.RAISED, bd=6)
 
-        self.squares = [[SquareView(self.frm_main_board, self, square_scale[0], square_scale[1], x, self.board_height - y - 1) for x in range(self.board_width)]
-                        for y in range(self.board_height)]
+        self.squares = [
+            [SquareView(self.frm_main_board, self, square_scale[0], square_scale[1], x, self.board_height - y - 1) for x
+             in range(self.board_width)]
+            for y in range(self.board_height)]
         self.pieces: dict[tuple[int, int], PieceView] = {}
 
         self.color_squares()
@@ -84,6 +91,13 @@ class BoardView(tk.Frame):
             self.pieces[sq].set_color(color)
         self.squares[~sq[1]][sq[0]].set_color(color)
 
+    def _set_piece(self, pos, piece):
+        self.pieces[pos] = piece
+        self.pieces[pos].set_xy(*pos)
+        self.pieces[pos].grid(row=(self.board_height - pos[1] - 1), column=pos[0], sticky='NESW', padx=(0, 0),
+                              pady=(0, 0))
+        self.pieces[pos].set_color(self.color_for(*pos))
+
     def set_piece(self, pos: Union[Square, tuple[int, int]], piece: Optional[Piece]) -> None:
         pos = pos if isinstance(pos, tuple) else pos.to_tuple()
         old = self.pieces.get(pos)
@@ -93,10 +107,7 @@ class BoardView(tk.Frame):
         if piece is None:
             return
         pimg = PieceView.load_image(f"pieces/{self.piece_to_id(piece)}.svg", self.square_scale)
-        self.pieces[pos] = PieceView(self.frm_main_board, self, pimg)
-        self.pieces[pos].set_xy(*pos)
-        self.pieces[pos].grid(row=(self.board_height - pos[1] - 1), column=pos[0], sticky='NESW', padx=(0, 0), pady=(0, 0))
-        self.pieces[pos].set_color(self.color_for(*pos))
+        self._set_piece(pos, PieceView(self.frm_main_board, self, pimg))
 
     def move_piece(self, fpos: Union[Square, tuple[int, int]], tpos: Union[Square, tuple[int, int]]) -> None:
         fpos = fpos if isinstance(fpos, tuple) else fpos.to_tuple()
@@ -105,10 +116,19 @@ class BoardView(tk.Frame):
         del self.pieces[fpos]
         if tpos in self.pieces:
             self.pieces[tpos].destroy()
-        self.pieces[tpos] = old
-        self.pieces[tpos].set_xy(*tpos)
-        self.pieces[tpos].grid(row=(self.board_height - tpos[1] - 1), column=tpos[0], sticky='NESW', padx=(0, 0), pady=(0, 0))
-        self.pieces[tpos].set_color(self.color_for(*tpos))
+        self._set_piece(tpos, old)
 
     def handle_square_btn(self, obj: Union[SquareView, PieceView], x: int, y: int) -> None:
         pass
+
+    def end_game(self, gameend: GameEndValue) -> None:
+        print("Game ended!", gameend)
+        print("moves:", " ".join(str(m) for m in self.controller.curmoves))
+        if gameend == GameEndValue.WHITE_WIN:
+            message = "White won!"
+        elif gameend == GameEndValue.BLACK_WIN:
+            message = "Black won!"
+        else:
+            message = "DRAW!"
+        tkinter.messagebox.showinfo("Game over", message)
+        self.master.end_game()  # type: ignore

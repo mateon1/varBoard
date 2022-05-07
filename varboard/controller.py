@@ -1,9 +1,31 @@
 from __future__ import annotations
 
-from typing import Optional, Iterable, Iterator
+from typing import Optional, Iterable, Iterator, Dict, Any
 
-from varboard.state import Position, GameTree, Move, BoardAction
-from varboard.variant import Variant, GameEndValue
+from .state import Position, Move, BoardAction, GameEndValue
+from .variant import Variant
+
+
+class GameTree:
+    def __init__(self, current: Position):
+        self.pos = current
+        self.next_moves: Dict[Move, GameTree] = {}
+        self.extra: Dict[str, Any] = {}
+        self.pv_move: Optional[Move] = None
+
+    def add_move(self, move: Move, to: Position) -> None:
+        self.next_moves[move] = GameTree(to)
+        if self.pv_move is None:
+            self.pv_move = move
+
+    def set_pv_move(self, move: Move) -> None:
+        self.pv_move = move
+
+    def set_extra(self, prop: str, data: Any) -> None:
+        self.extra[prop] = data
+
+    def get_extra(self, prop: str) -> Any:
+        return self.extra.get(prop)
 
 
 class GameController:
