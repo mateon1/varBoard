@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import tkinter as tk
 import tkinter.messagebox
 
@@ -7,30 +9,36 @@ from ..variant import GameEndValue
 from varboard.GUI.promotion_window import PromotionWindow
 from varboard.state import Color
 
+from typing import Any, Union, Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .widgets import SquareView
+    from ..state import Square, Piece, Move
+    from ..controller import GameController
+
 
 class ChessBoardView(BoardView):
-    def __init__(self, master, variant, square_scale, reverse=False, white_color='linen', black_color='saddle brown', *args, **kwargs):
-        super().__init__(master, variant, square_scale, reverse, white_color, black_color, *args, **kwargs)
-        self.last_clicked = None
-        self.promotion_choice = None
+    def __init__(self, master: Any, controller: GameController, square_scale: tuple[int, int], reverse: bool = False, white_color: str = 'linen', black_color: str = 'saddle brown', *args: Any, **kwargs: Any):
+        super().__init__(master, controller, square_scale, reverse, white_color, black_color, *args, **kwargs)
+        self.last_clicked: Optional[tuple[int, int]] = None
+        self.promotion_choice: Optional[Piece] = None
 
-    def set_bars(self, reverse):
+    def set_bars(self) -> None:
         self.frm_number_bar = tk.Frame(master=self)
         self.frm_letter_bar = tk.Frame(master=self)
 
         for row in range(self.board_height):
             # filling bar with numbers
             lbl_number = tk.Label(master=self.frm_number_bar, text=str(self.board_height - row))
-            lbl_number.pack(expand=True, fill='y', side=self.y_pack_side)
+            lbl_number.pack(expand=True, fill='y', side=self.y_pack_side) # type: ignore
 
             # filling bar with letters
             lbl_letter = tk.Label(master=self.frm_letter_bar, text=chr(ord('A') + row))
-            lbl_letter.pack(expand=True, fill='x', side=self.x_pack_side)
+            lbl_letter.pack(expand=True, fill='x', side=self.x_pack_side) # type: ignore
 
             self.frm_main_board.columnconfigure(row, weight=1)
             self.frm_main_board.rowconfigure(row, weight=1)
 
-    def grid_components(self):
+    def grid_components(self) -> None:
         self.frm_main_board.grid(row=1, column=1)
         self.frm_letter_bar.grid(row=2, column=1, sticky='nesw')
         self.frm_number_bar.grid(row=1, column=0, sticky='nesw')
@@ -39,10 +47,10 @@ class ChessBoardView(BoardView):
         tk.Frame(master=self, height=10).grid(row=0, column=1)
         tk.Frame(master=self, width=10).grid(row=1, column=2)
 
-        self.rowconfigure([0, 1], weight=1)
-        self.columnconfigure([0, 1], weight=1)
+        self.rowconfigure([0, 1], weight=1) # type: ignore
+        self.columnconfigure([0, 1], weight=1) # type: ignore
 
-    def domove(self, move):
+    def domove(self, move: Move) -> None:
         print("executing move", move)
         actns, gameend = self.controller.move(move)
         for a in actns:
@@ -61,10 +69,14 @@ class ChessBoardView(BoardView):
             else:
                 message = "DRAW!"
             tkinter.messagebox.showinfo("Game over", message)
-            self.master.end_game()
+            self.master.end_game() # type: ignore
 
-    def do_promotion_move(self, moves):
-        PromotionWindow(self, [m.intopiece for m in moves]).wait_window()
+    def do_promotion_move(self, moves: list[Move]) -> None:
+        pieces = []
+        for m in moves:
+            assert m.intopiece is not None
+            pieces.append(m.intopiece)
+        PromotionWindow(self, pieces).wait_window()
 
         for move in moves:
             if move.intopiece == self.promotion_choice:
@@ -74,20 +86,22 @@ class ChessBoardView(BoardView):
             raise ValueError("Failed to select promotion piece")
         self.promotion_choice = None
 
-    def handle_square_btn(self, square, x, y):
+    def handle_square_btn(self, square: Union[SquareView, PieceView], x: int, y: int) -> None:
         print(f"Clicked {x}, {y}, last {self.last_clicked}")
         allmoves = []
         movesto = []
         movesfrom = []
         for m in self.controller.legal_moves():
             allmoves.append(m)
+            assert m.tosq is not None
+            assert m.fromsq is not None
             if m.tosq.to_tuple() == (x, y): movesto.append(m)
             if m.fromsq.to_tuple() == (x, y): movesfrom.append(m)
         for sq in set(m.tosq for m in allmoves):
             self.set_color(sq, None)
         moves = []
         if self.last_clicked:
-            moves = [m for m in movesto if m.fromsq.to_tuple() == self.last_clicked]
+            moves = [m for m in movesto if m.fromsq is not None and m.fromsq.to_tuple() == self.last_clicked]
         else:
             if len(set(m.fromsq for m in movesto)) == 1: # Unique move to
                 if len(movesto) > 1: self.do_promotion_move(movesto)
@@ -109,7 +123,7 @@ class ChessBoardView(BoardView):
         elif len(moves): self.domove(moves[0])
         self.last_clicked = None
 
-    def select_promotion(self, chosen_piece: str):
+    def select_promotion(self, chosen_piece: Piece) -> None:
         self.promotion_choice = chosen_piece
 
 
@@ -122,10 +136,6 @@ if __name__ == '__main__':
     controller = GameController(variant.Chess(), None)
     board_view = ChessBoardView(window, controller, scale, reverse=False)
     print(board_view.tk)
-    board_view.set_piece(0, 1, 'bK')
-    board_view.set_piece(1, 1, 'wN')
-    board_view.set_piece(5, 6, 'bR')
-    board_view.set_piece(4, 5, 'wK')
 
     board_view.pack()
     window.mainloop()

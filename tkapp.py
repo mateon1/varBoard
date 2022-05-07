@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import tkinter as tk
 from varboard.variant import Chess, TicTacToe, RacingKings
 from varboard.controller import GameController
@@ -6,27 +8,18 @@ from varboard.GUI.TicTacToeBoardView import TicTacToeBoardView
 from varboard.GUI.StartMenu import StartMenu
 from varboard.GUI.BoardView import BoardView
 from varboard.GUI.widgets import PieceView
-from typing import Any
 
+from typing import Any, Optional
 
-class MainApplication(tk.Frame):
-    def __init__(self, parent: Any, *args: Any, **kwargs: Any):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-
-
-# import varboard.GUI.ChessBoardView as cbv
-# import varboard.GUI.PieceView as PieceView
-# from varboard.GUI.PieceView import PieceView
 
 class MainApplication(tk.Tk):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         tk.Tk.__init__(self, *args, **kwargs)
         self.start_menu = StartMenu(master=self)
         self.start_menu.pack()
-        self.board_view = None
+        self.board_view: Optional[BoardView] = None
 
-    def handle_play_btn(self, option):
+    def handle_play_btn(self, option: str) -> None:
         if option == "Standard":
             self.start_variant("chess")
         elif option == "TicTacToe":
@@ -34,7 +27,7 @@ class MainApplication(tk.Tk):
         elif option == "Racing Kings":
             self.start_variant("racingkings")
 
-    def start_variant(self, variant):
+    def start_variant(self, variant: str) -> None:
         self.start_menu.destroy()
         if variant == "chess":
             controller = GameController(Chess(), None)
@@ -49,8 +42,10 @@ class MainApplication(tk.Tk):
             raise ValueError("Unknown variant " + variant)
         self.board_view.pack()
 
-    def end_game(self):
+    def end_game(self) -> None:
+        assert self.board_view is not None
         self.board_view.destroy()
+        self.board_view = None
         self.start_menu = StartMenu(master=self)
         self.start_menu.pack()
 

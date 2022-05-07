@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import tkinter as tk
 import tkinter.messagebox
 import cairosvg
 import io
 from PIL import Image, ImageTk
-from typing import Any
+
+from typing import Any, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .BoardView import BoardView
 
 class SquareView(tk.Frame):
-    def __init__(self, master, board_view, height, width, x, y):
+    def __init__(self, master: Any, board_view: BoardView, height: int, width: int, x: int, y: int):
         def on_click(event):
             board_view.handle_square_btn(self, x, y)
 
@@ -17,7 +22,7 @@ class SquareView(tk.Frame):
         self.configure(bg=color)
 
 
-imagecache = {}
+imagecache: dict[str, Image] = {}
 
 class PieceView(tk.Label):
     @staticmethod
@@ -31,7 +36,7 @@ class PieceView(tk.Label):
             imagecache[image_path] = img
         return ImageTk.PhotoImage(img)
 
-    def __init__(self, master, board_view, image):
+    def __init__(self, master: Any, board_view: BoardView, image: ImageTk.PhotoImage):
         super().__init__(master=master, image=image, bg='linen')
         self.pimg = image
         self.bind('<Button-1>', lambda event: board_view.handle_square_btn(self, self.x, self.y))
@@ -42,6 +47,6 @@ class PieceView(tk.Label):
     def set_color(self, color: str) -> None:
         self.configure(bg=color)
 
-    def set_xy(self, x, y):
+    def set_xy(self, x: int, y: int) -> None:
         self.x = x
         self.y = y

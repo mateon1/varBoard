@@ -1,13 +1,15 @@
-import tkinter as tk
-from queue import SimpleQueue
-from varboard.state import Color, Piece
-from varboard.GUI.widgets import PieceView
-from varboard.GUI.widgets import SquareView
-from varboard.GUI.BoardView import BoardView
+from __future__ import annotations
 
+import tkinter as tk
+from .widgets import PieceView, SquareView
+
+from typing import Any, Union, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .ChessBoardView import ChessBoardView
+    from ..state import Piece
 
 class PromotionWindow(tk.Toplevel):
-    def __init__(self, board_view: BoardView, selection: list[Piece]):
+    def __init__(self, board_view: ChessBoardView, selection: list[Piece]):
         super().__init__()
 
         self.board_view = board_view
@@ -20,22 +22,22 @@ class PromotionWindow(tk.Toplevel):
         self.piece_types = selection
         self.pieces = []
         self.squares = []
-        self.sel_queue = SimpleQueue()
         for i, piece_type in enumerate(self.piece_types):
             pimg = PieceView.load_image(f"pieces/{board_view.piece_to_id(piece_type)}.svg", (75, 75))
-            self.squares.append(SquareView(self.frm, self, 75, 75, i, 0))
-            self.pieces.append(PieceView(self.squares[-1], self, pimg))
+            self.squares.append(SquareView(self.frm, self, 75, 75, i, 0))  # type: ignore
+            self.pieces.append(PieceView(self.squares[-1], self, pimg))  # type: ignore
             self.pieces[-1].set_xy(i, 0)
             self.pieces[-1].pack()
             self.squares[-1].pack(side=tk.LEFT)
 
-    def handle_square_btn(self, piece, x, y):
+    def handle_square_btn(self, piece: PieceView, x: int, y: int) -> None:
         print(f"Clicked {x}, {y}")
         self.board_view.select_promotion(self.piece_types[x])
         self.destroy()
 
 
 if __name__ == '__main__':
+    from ..state import Color, Piece
     class MockBoardView:
         def piece_to_id(self, p):
             return BoardView.piece_to_id(self, p)
@@ -43,7 +45,7 @@ if __name__ == '__main__':
         def select_promotion(self, p):
             print("Selected promotion piece:", p)
 
-    root = PromotionWindow(MockBoardView(), [Piece(ty, Color.WHITE) for ty in "QNRB"])
+    root = PromotionWindow(MockBoardView(), [Piece(ty, Color.WHITE) for ty in "QNRB"]) # type: ignore
     root.mainloop()
 
 

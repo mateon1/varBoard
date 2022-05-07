@@ -23,6 +23,8 @@ def get_kingsq(pos: Position, my: Color) -> tuple[Square, Square]:
                 my_ksq = sq
             else:
                 opp_ksq = sq
+    assert my_ksq is not None
+    assert opp_ksq is not None
     return my_ksq, opp_ksq
 
 class Variant:
