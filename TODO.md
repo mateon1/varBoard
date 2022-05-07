@@ -10,8 +10,8 @@
     -   [x] Allow inputting moves (in a way that supports even weird
         variants like amazons)
         -   [ ] By drag-and-drop
-        -   [ ] By clicking the from and to square
-            -   [ ] Display possible moves after selecting a piece
+        -   [x] By clicking the from and to square
+            -   [x] Display possible moves after selecting a piece
         -   [ ] By keyboard input
     -   [ ] Show players and timers
     -   [ ] Piece movement animations
@@ -26,10 +26,10 @@
     -   [ ] Engine output
         -   [ ] MultiPV
     -   [ ] Evaluation bar
--   [ ] UCI Protocol
+-   [x] UCI Protocol
     -   [x] Connect to Fairy-Stockfish (or other engine)
     -   [x] Allow setting options
-        -   [ ] While running
+        -   [x] While running
     -   [ ] Set up positions
     -   [x] Search positions
         -   [x] With proper time control info
