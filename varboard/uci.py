@@ -2,6 +2,8 @@ import queue
 import subprocess
 import threading
 import time
+from .controller import GameController
+from .variant import *
 from typing import Optional, Union, Iterator, Iterable, Callable, Any, TypeVar
 
 # Types:
@@ -150,6 +152,7 @@ class UCIEngine:
         self.reader_thread: Optional[threading.Thread] = None
         self.log: list[tuple[float, str]] = []
         self.running: bool = False
+        self.searching: bool = False
 
         self.uci_options: dict[str, Context] = {}
         self.uci_ready_queue = queue.SimpleQueue[CommandData]()
@@ -206,6 +209,7 @@ class UCIEngine:
         elif cmd in {"uciok", "readyok"}:
             self.uci_ready_queue.put((cmd, ctx))
         elif cmd == "bestmove":
+            self.searching = False
             self.uci_move_queue.put((cmd, ctx))
         else:
             print("Unhandled command:", cmd)
@@ -263,13 +267,34 @@ class UCIEngine:
         uci.send_command("isready")
         print(get_interruptible(self.uci_ready_queue))
 
+    def search_sync(self, time: tuple[float, float], inc: Optional[tuple[float, float]]) -> str:
+        self.search_async(time, inc)
+        _, ctx = get_interruptible(self.uci_move_queue)
+        # TODO: Return actual Move
+        return ctx["bestmove"]
+
+    def search_async(self, time: Optional[tuple[float, float]], inc: Optional[tuple[float, float]]) -> None:
+        assert not self.searching
+        self.searching = True
+        cmd = "go"
+        if time is not None:
+            wtime = int(time[0] * 1000)
+            btime = int(time[1] * 1000)
+            cmd += f" wtime {wtime} btime {btime}"
+            if inc is not None:
+                winc = int(inc[0] * 1000)
+                binc = int(inc[1] * 1000)
+                cmd += f" winc {winc} binc {binc}"
+        self.send_command(cmd)
+
     def reader(self, pipe: Iterator[bytes]) -> None:
         assert self.engine_process is not None
         try:
             for l in pipe:
                 self.log.append((time.time(), l.decode("utf-8")))
                 self.process_line(l)
-            self.engine_process.wait()
+            if self.engine_process is not None:
+                self.engine_process.wait(2.0)
         except KeyboardInterrupt:
             self.close()
             raise
@@ -287,7 +312,8 @@ class UCIEngine:
         if self.engine_process:
             self.engine_process.terminate()
             self.engine_process.wait(5.0)
-            self.engine_process.kill()
+            if self.engine_process is not None:
+                self.engine_process.kill()
         self.engine_process = None
         self.reader_thread = None
         self.running = False
@@ -331,8 +357,11 @@ if __name__ == "__main__":  # TEMPORARY - for testing
 
     print("variants", uci.uci_options["UCI_Variant"]["var"])
 
+    variant = "chess"
+
     if len(sys.argv) > 1:
         uci.option_set("UCI_Variant", sys.argv[1])
+        variant = sys.argv[1]
     if len(sys.argv) > 2:
         uci.option_set("EvalFile", sys.argv[2])
 
@@ -352,53 +381,67 @@ if __name__ == "__main__":  # TEMPORARY - for testing
     moves: list[str] = []
     start = time.time()
 
+    if variant == "chess":
+        controller = GameController(Chess(), None)
+    elif variant == "tictactoe":
+        controller = GameController(TicTacToe(), None)
+    elif variant == "racingkings":
+        controller = GameController(RacingKings(), None)
 
     def info_thread_fn() -> None:
         time.sleep(0.1)
-        while True:
-            try:
-                _ = uci.uci_info_queue.get(timeout=0.1)
-                info = uci.uci_scores[0]
-                score = info["score"] if info is not None else "???"
-                depth = "%3d" % info["depth"] if info is not None else "???"
-                est = round((time.time() - start) * 1000)
-                wt = wtime - (0 if cur_i & 1 else est)
-                bt = btime - (est if cur_i & 1 else 0)
-                print(f"{cur_i:3d}/200 ...{' '.join(moves[-5:])} time w{wt:6d} b{bt:6d} depth {depth} score {score}  ",
-                      end="\r")
-            except queue.Empty:
-                pass
+        try:
+            while uci.running:
+                try:
+                    _ = uci.uci_info_queue.get(timeout=0.1)
+                    info = uci.uci_scores[0]
+                    score = info["score"] if info is not None else "???"
+                    depth = "%3d" % info["depth"] if info is not None else "???"
+                    est = (time.time() - start)
+                    wt = round((wtime - (0 if cur_i & 1 else est))*1000)
+                    bt = round((btime - (est if cur_i & 1 else 0))*1000)
+                    print(f"{cur_i:3d}/200 ...{' '.join(moves[-5:])} time w{wt:6d} b{bt:6d} depth {depth} score {score}  ",
+                          end="\r")
+                except queue.Empty:
+                    pass
+        except KeyboardInterrupt:
+            print("Interrupted info thread")
+            uci.close()
+            raise
 
+    info_thread = threading.Thread(target=info_thread_fn)
+    info_thread.start()
 
-    # info_thread = threading.Thread(target=info_thread_fn)
-    # info_thread.start()
-    for game in range(500):
-        print(f"===== GAME #{game + 1} =====")
-        moves = []
-        wtime = btime = 15000
-        winc = binc = 200
-        for i in range(200):
-            cur_i = i
-            info = {} if i == 0 else uci.uci_scores[0]
-            print(f"{i:3d}/200 ...{' '.join(moves[-5:])} score ???   ", end="\r")
-            uci.send_command(f"position startpos moves {' '.join(moves)}")
-            # uci.send_command("go movetime 1000")
-            uci.send_command(f"go wtime {wtime} btime {btime} winc {winc} binc {binc}")
-            start = time.time()
-            _, move = get_interruptible(uci.uci_move_queue)
-            dur = round((time.time() - start) * 1000)
-            if move["bestmove"] == "(none)": break
-            if i & 1 == 0:
-                wtime -= dur
-                wtime += winc
-            else:
-                btime -= dur
-                btime += binc
-            # print(move)
-            moves.append(move["bestmove"])
-        time.sleep(0.05)
-        print()
-        print(moves)
-        print(uci.log[-2])
-    uci.close_wait()
-    # info_thread.join()
+    try:
+        for game in range(500):
+            print(f"===== GAME #{game + 1} =====")
+            moves = []
+            wtime = btime = 15.0
+            winc = binc = 0.2
+            for i in range(200):
+                cur_i = i
+                info = {} if i == 0 else uci.uci_scores[0]
+                print(f"{i:3d}/200 ...{' '.join(moves[-5:])} score ???   ", end="\r")
+                uci.send_command(f"position startpos moves {' '.join(moves)}")
+                start = time.time()
+                move = uci.search_sync((wtime, btime), (winc, binc))
+                dur = time.time() - start
+                if move == "(none)": break
+                if i & 1 == 0:
+                    wtime -= dur
+                    wtime += winc
+                else:
+                    btime -= dur
+                    btime += binc
+                # print(move)
+                moves.append(move)
+            time.sleep(0.05)
+            print()
+            print(moves)
+            print(uci.log[-2])
+        uci.close_wait()
+        info_thread.join()
+    except KeyboardInterrupt:
+        uci.close()
+        uci.uci_info_queue = None
+        info_thread.join()
