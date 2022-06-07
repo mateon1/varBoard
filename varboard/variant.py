@@ -274,7 +274,7 @@ class Chess(Variant):
             return piece.ty in "QR"
         raise ValueError(f"Don't know whether {piece.ty} moves like {like}")
 
-    def target_squares(self, pos: Position, square: Square) -> Iterator[Square]:
+    def target_squares(self, pos: Position, square: Square, attack: bool = False) -> Iterator[Square]:
         piece = pos.get_piece(square)
         if piece is None: return
         my = piece.color
@@ -287,7 +287,7 @@ class Chess(Variant):
         if piece.ty == "P":
             upsq = square.offset(0, forwardy)
             assert pos.inbounds(upsq)
-            if pos.get_piece(upsq) is None:
+            if pos.get_piece(upsq) is None and not attack:
                 yield upsq
                 _, height = pos.bounds()
                 up2sq = square.offset(0, 2 * forwardy)
@@ -296,14 +296,14 @@ class Chess(Variant):
             if ox > 0:
                 sq = upsq.offset(-1, 0)
                 p = pos.get_piece(sq)
-                if p is not None and p.color == ~my:
+                if p is not None and p.color == ~my or attack:
                     yield sq
                 elif pos.get_extra("ep") == sq:
                     yield sq
             if ox < W - 1:
                 sq = upsq.offset(1, 0)
                 p = pos.get_piece(sq)
-                if p is not None and p.color == ~my:
+                if p is not None and p.color == ~my or attack:
                     yield sq
                 elif pos.get_extra("ep") == sq:
                     yield sq
@@ -392,8 +392,13 @@ class Chess(Variant):
     def legal_moves(self, pos: Position) -> Iterator[Move]:
         # NOTE: Only supports 8x8 boards, smaller and larger variants should reimplement
         my = Color.from_ply(pos.ply)
+        rights = pos.get_extra("castle") or (0, 0)
+        myrights = rights[0] if my == Color.WHITE else rights[1]
+        homerank = 0 if my == Color.WHITE else 7
+
         pieces = []
         opppieces = []
+        attackedsq: set[Square] = set()
         for sq, p in pos.pieces_iter():
             if p.color == my:
                 pieces.append((sq, p))
@@ -401,6 +406,10 @@ class Chess(Variant):
                 opppieces.append((sq, p))
 
         incheck = self.is_in_check(pos, my)
+
+        for sq, p in opppieces:
+            for tsq in self.target_squares(pos, sq, attack=True):
+                attackedsq.add(tsq)
 
         for sq, p in pieces:
             for tsq in self.target_squares(pos, sq):
@@ -415,9 +424,29 @@ class Chess(Variant):
                         yield Move.move_promote(sq, tsq, Piece(ty, my))
                 else:
                     yield Move.move(sq, tsq)
-        # TODO:
-        #  Handle castling
-        ...
+
+        if myrights & Chess.CASTLE_SHORT:
+            move = Move.move(Square(rank=homerank, file=4), Square(rank=homerank, file=6))
+            rookfrom = Square(rank=move.tosq.rank, file=7)
+            rookto = move.tosq.offset(-1, 0)
+            rook = pos.get_piece(rookfrom)
+            assert rook is not None
+            for i in {4, 5, 6, 7}:
+                if Square(rank=homerank, file=i) in attackedsq:
+                    break
+            else:
+                yield move
+        if myrights & Chess.CASTLE_LONG:
+            move = Move.move(Square(rank=homerank, file=4), Square(rank=homerank, file=2))
+            rookfrom = Square(rank=move.tosq.rank, file=0)
+            rookto = move.tosq.offset(-1, 0)
+            rook = pos.get_piece(rookfrom)
+            assert rook is not None
+            for i in {0, 1, 2, 3, 4}:
+                if Square(rank=homerank, file=i) in attackedsq:
+                    break
+            else:
+                yield move
 
     def execute_move(self, pos: Position, move: Move) -> tuple[Position, list[BoardAction]]:
         # TODO: 50mr counters
@@ -458,9 +487,21 @@ class Chess(Variant):
         castlew, castleb = pos.get_extra("castle") or (3, 3)
         mycastle = castlew if my == Color.WHITE else castleb
         if piece.ty == "K":
-            if fromsq.rank == homerank and move.tosq.rank == homerank:
-                ...
-                # TODO: Handle castling
+            if fromsq.rank == homerank and move.tosq.rank == homerank and abs(move.fromsq.file - move.tosq.file) > 1:
+                # TODO: Add validity checking?
+                if move.tosq.file == 2:
+                    # Queenside
+                    rookfrom = Square(rank=move.tosq.rank, file=0)
+                    rookto = move.tosq.offset(1, 0)
+                else:
+                    # Kingside
+                    rookfrom = Square(rank=move.tosq.rank, file=7)
+                    rookto = move.tosq.offset(-1, 0)
+                rook = pos.get_piece(rookfrom)
+                assert rook is not None
+                nextpos.piece(rookfrom, None)
+                nextpos.piece(rookto, rook)
+                actions.append(BoardAction(rookto, rookfrom))
             if my == Color.WHITE:
                 castlew = 0
             else:
@@ -476,6 +517,21 @@ class Chess(Variant):
                 nextpos.extra("castle", (castlew, castleb))
             return nextpos.build(), actions
         raise ValueError(f"Bad piece {piece!r}")
+
+
+class NoCastleChess(Chess):
+    def uci_name(self) -> str:
+        return "nocastle"
+
+    def startpos(self) -> Position:
+        b = PositionBuilder((8, 8), 0)
+        for x, p in enumerate("RNBQKBNR"):
+            b.piece(Square(file=x, rank=0), Piece(p, Color.WHITE))
+            b.piece(Square(file=x, rank=7), Piece(p, Color.BLACK))
+            b.piece(Square(file=x, rank=1), Piece("P", Color.WHITE))
+            b.piece(Square(file=x, rank=6), Piece("P", Color.BLACK))
+        b.extra("ep", None)
+        return b.build()
 
 
 class RacingKings(Chess):
@@ -511,6 +567,12 @@ class RacingKings(Chess):
             return GameEndValue.win_for(my)
 
         if opp_ksq.rank == 7 and my_ksq.rank < 6:  # If we're one tile behind we can still force a draw
+            return GameEndValue.win_for(~my)
+
+        if opp_ksq.rank == 7 and my_ksq.rank == 6:  # But sometimes we can't force a draw if no king moves to the last rank are available
+            for m in self.legal_moves(pos):
+                if m.fromsq == my_ksq and m.tosq.rank == 7:
+                    return None
             return GameEndValue.win_for(~my)
 
         return None

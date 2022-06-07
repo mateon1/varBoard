@@ -166,7 +166,7 @@ class GameController:
             self.uci2_info_thread = threading.Thread(target=self._uci_info_thread_fn, args=(self.uci2,))
             self.uci2_info_thread.start()
 
-    def engine_move_async(self, cb: Callable[[tuple[list[BoardAction], Optional[GameEndValue]]]]) -> None:
+    def engine_move_async(self, cb: Callable[[tuple[list[BoardAction], Optional[GameEndValue]]], None]) -> None:
         assert self.uci is not None
         if self.uci_info_thread is None:
             self._start_engine()
@@ -174,8 +174,9 @@ class GameController:
             self.lastuci = self.uci if self.current.pos.ply % 2 == 0 else self.uci2
         assert self.lastuci is not None
         self.lastuci.set_position(self.variant.pos_to_fen(self.tree.pos) if not self.root_is_startpos else None, self.curmoves)
-        def move_thread_fn():
+        def move_thread_fn() -> None:
             start = time.time()
+            assert self.lastuci is not None
             move = Move.from_uci(self.lastuci.search_sync(self.tc.time, self.tc.inc), self.current.pos.ply)
             self.tc.subtract(Color.from_ply(self.current.pos.ply), time.time() - start)
             cb(self.move(move))

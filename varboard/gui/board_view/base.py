@@ -9,7 +9,7 @@ from typing import Any, Union, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...controller import GameController
-    from ...state import Piece, Square, Move
+    from ...state import Piece, Square, Move, BoardAction
 
 
 class BoardView(tk.Frame):
@@ -122,7 +122,7 @@ class BoardView(tk.Frame):
     def handle_square_btn(self, obj: Union[SquareView, PieceView], x: int, y: int) -> None:
         pass
 
-    def didmove(self, data: tuple[list[BoardActions], Optional[GameEndValue]]) -> None:
+    def didmove(self, data: tuple[list[BoardAction], Optional[GameEndValue]]) -> None:
         actns, gameend = data
         print("moves:", " ".join(str(m) for m in self.controller.curmoves))
         for a in actns:

@@ -1,5 +1,5 @@
 import tkinter as tk
-from varboard.variant import Chess, TicTacToe, RacingKings
+from varboard.variant import Chess, NoCastleChess, TicTacToe, RacingKings
 from varboard.controller import GameController, TimeControl
 from varboard.uci import UCIEngine
 from varboard.gui.board_view import ChessBoardView, TicTacToeBoardView
@@ -11,8 +11,14 @@ if TYPE_CHECKING:
 
 
 # TODO: Better configuration for this
-ENGINE1_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
+ENGINE1_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana1-dev-6bdcdd8"
+ENGINE1_CONFIG = {
+    "Threads": 32,
+    "Hash": 1024,
+#    "SyzygyPath": "/nfs/syzygy",
+}
 ENGINE2_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
+ENGINE2_CONFIG = ENGINE1_CONFIG
 
 
 class MainApplication(tk.Tk):
@@ -33,6 +39,8 @@ class MainApplication(tk.Tk):
             assert False, f"Impossible mode: {mode}"
         if option == "Standard":
             self.start_variant("chess", n_engines)
+        elif option == "No castling":
+            self.start_variant("nocastle", n_engines)
         elif option == "TicTacToe":
             self.start_variant("tictactoe", n_engines)
         elif option == "Racing Kings":
@@ -43,6 +51,9 @@ class MainApplication(tk.Tk):
         self.start_menu.destroy()
         if variant == "chess":
             controller = GameController(Chess(), None)
+            self.board_view = ChessBoardView(self, controller, (75, 75))
+        elif variant == "nocastle":
+            controller = GameController(NoCastleChess(), None)
             self.board_view = ChessBoardView(self, controller, (75, 75))
         elif variant == "racingkings":
             controller = GameController(RacingKings(), None)
@@ -56,7 +67,12 @@ class MainApplication(tk.Tk):
             controller.set_tc(TimeControl(time, inc))
         if n_engines:
             uci = UCIEngine(ENGINE1_PATH)
+            for k, v in ENGINE1_CONFIG.items():
+                uci.option_set(k, v)
             uci2 = UCIEngine(ENGINE2_PATH) if n_engines > 1 else None
+            if uci2 is not None:
+                for k, v in ENGINE2_CONFIG.items():
+                    uci2.option_set(k, v)
             controller.with_engine(uci, uci2)
             self.board_view.engine_setup()
         self.board_view.pack()
