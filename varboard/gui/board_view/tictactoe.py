@@ -27,27 +27,21 @@ class TicTacToeBoardView(BoardView):
         print(f"Clicked {x}, {y}")
         for m in self.controller.legal_moves():
             if m.tosq.to_tuple() == (x, y):
-                print("executing move", m)
-                actns, gameend = self.controller.move(m)
-                for a in actns:
-                    if a.fromsq is not None:
-                        # Not for tic tac toe
-                        self.move_piece(a.fromsq, a.tosq)
-                    else:
-                        self.set_piece(a.tosq, a.piece)
-                if gameend != None:
-                    print("Game ended!", gameend)
-                    if gameend == GameEndValue.WHITE_WIN:
-                        message = "Circle won!"
-                    elif gameend == GameEndValue.BLACK_WIN:
-                        message = "Cross won!"
-                    else:
-                        message = "DRAW!"
-                    tkinter.messagebox.showinfo("Game over", message)
-                    self.master.end_game()  # type: ignore
+                self.domove(m)
                 break
         else:
             print("Illegal move!!!")
+
+    def end_game(self, gameend: GameEndValue) -> None:
+        print("Game ended!", gameend)
+        if gameend == GameEndValue.WHITE_WIN:
+            message = "Circle won!"
+        elif gameend == GameEndValue.BLACK_WIN:
+            message = "Cross won!"
+        else:
+            message = "DRAW!"
+        tkinter.messagebox.showinfo("Game over", message)
+        self.master.end_game() # type: ignore
 
 
 if __name__ == '__main__':

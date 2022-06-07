@@ -42,7 +42,7 @@ class StartMenu(tk.Frame):
         self.mode_frm.pack()
 
         def handle_play_btn() -> None:
-            self.master.handle_play_btn(self.variant_value_inside.get()) # type: ignore
+            self.master.handle_play_btn(self.variant_value_inside.get(), self.mode_value_inside.get()) # type: ignore
 
         self.play_btn = tk.Button(self, text="Play", font=("Courier", 12), command=handle_play_btn)
         self.play_btn.pack()

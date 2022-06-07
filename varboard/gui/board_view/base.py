@@ -9,7 +9,7 @@ from typing import Any, Union, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...controller import GameController
-    from ...state import Piece, Square
+    from ...state import Piece, Square, Move
 
 
 class BoardView(tk.Frame):
@@ -22,6 +22,7 @@ class BoardView(tk.Frame):
         self.square_scale = square_scale
 
         self.controller = controller
+        self.engine_play = False
 
         self.board_height, self.board_width = controller.current.pos.bounds()
 
@@ -121,6 +122,28 @@ class BoardView(tk.Frame):
     def handle_square_btn(self, obj: Union[SquareView, PieceView], x: int, y: int) -> None:
         pass
 
+    def didmove(self, data: tuple[list[BoardActions], Optional[GameEndValue]]) -> None:
+        actns, gameend = data
+        print("moves:", " ".join(str(m) for m in self.controller.curmoves))
+        for a in actns:
+            print("  ", a)
+            if a.fromsq is not None:
+                self.move_piece(a.fromsq, a.tosq)
+            else:
+                self.set_piece(a.tosq, a.piece)
+        if gameend is not None:
+            self.end_game(gameend)
+        else:
+            self.end_turn()
+
+    def domove(self, move: Move) -> None:
+        print("executing move", move)
+        self.didmove(self.controller.move(move))
+
+    def end_turn(self) -> None:
+        if self.engine_play:
+            self.after(100, self.automove)
+
     def end_game(self, gameend: GameEndValue) -> None:
         print("Game ended!", gameend)
         print("moves:", " ".join(str(m) for m in self.controller.curmoves))
@@ -132,3 +155,13 @@ class BoardView(tk.Frame):
             message = "DRAW!"
         tkinter.messagebox.showinfo("Game over", message)
         self.master.end_game()  # type: ignore
+
+    def engine_setup(self) -> None:
+        if self.controller.uci is not None:
+            self.engine_play = True
+            self.after(100, self.automove)
+        else:
+            self.engine_play = False
+
+    def automove(self) -> None:
+        self.controller.engine_move_async(self.didmove)

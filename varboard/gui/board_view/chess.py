@@ -48,19 +48,6 @@ class ChessBoardView(BoardView):
         self.rowconfigure([0, 1], weight=1)  # type: ignore
         self.columnconfigure([0, 1], weight=1)  # type: ignore
 
-    def domove(self, move: Move) -> None:
-        print("executing move", move)
-        actns, gameend = self.controller.move(move)
-        print("moves:", " ".join(str(m) for m in self.controller.curmoves))
-        for a in actns:
-            print("  ", a)
-            if a.fromsq is not None:
-                self.move_piece(a.fromsq, a.tosq)
-            else:
-                self.set_piece(a.tosq, a.piece)
-        if gameend is not None:
-            self.end_game(gameend)
-
     def do_promotion_move(self, moves: list[Move]) -> None:
         pieces = []
         for m in moves:
