@@ -1,5 +1,5 @@
 import tkinter as tk
-from varboard.variant import Chess, NoCastleChess, TicTacToe, RacingKings
+from varboard.variant import Chess, NoCastleChess, PawnsOnly, TicTacToe, RacingKings
 from varboard.controller import GameController, TimeControl
 from varboard.uci import UCIEngine
 from varboard.gui.board_view import ChessBoardView, TicTacToeBoardView
@@ -12,12 +12,14 @@ if TYPE_CHECKING:
 
 # TODO: Better configuration for this
 ENGINE1_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana1-dev-6bdcdd8"
+ENGINE1_ARGS = "load ../Stockfish/releases/variants.ini".split()
 ENGINE1_CONFIG = {
     "Threads": 32,
     "Hash": 1024,
 #    "SyzygyPath": "/nfs/syzygy",
 }
 ENGINE2_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
+ENGINE2_ARGS = "load ../Stockfish/releases/variants.ini".split()
 ENGINE2_CONFIG = ENGINE1_CONFIG
 
 
@@ -41,6 +43,8 @@ class MainApplication(tk.Tk):
             self.start_variant("chess", n_engines)
         elif option == "No castling":
             self.start_variant("nocastle", n_engines)
+        elif option == "Pawns only":
+            self.start_variant("pawnsonly", n_engines)
         elif option == "TicTacToe":
             self.start_variant("tictactoe", n_engines)
         elif option == "Racing Kings":
@@ -55,6 +59,9 @@ class MainApplication(tk.Tk):
         elif variant == "nocastle":
             controller = GameController(NoCastleChess(), None)
             self.board_view = ChessBoardView(self, controller, (75, 75))
+        elif variant == "pawnsonly":
+            controller = GameController(PawnsOnly(), None)
+            self.board_view = ChessBoardView(self, controller, (75, 75))
         elif variant == "racingkings":
             controller = GameController(RacingKings(), None)
             self.board_view = ChessBoardView(self, controller, (75, 75))
@@ -66,10 +73,10 @@ class MainApplication(tk.Tk):
         if time is not None:
             controller.set_tc(TimeControl(time, inc))
         if n_engines:
-            uci = UCIEngine(ENGINE1_PATH)
+            uci = UCIEngine(ENGINE1_PATH, ENGINE1_ARGS)
             for k, v in ENGINE1_CONFIG.items():
                 uci.option_set(k, v)
-            uci2 = UCIEngine(ENGINE2_PATH) if n_engines > 1 else None
+            uci2 = UCIEngine(ENGINE2_PATH, ENGINE2_ARGS) if n_engines > 1 else None
             if uci2 is not None:
                 for k, v in ENGINE2_CONFIG.items():
                     uci2.option_set(k, v)

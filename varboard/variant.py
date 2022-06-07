@@ -534,6 +534,30 @@ class NoCastleChess(Chess):
         return b.build()
 
 
+class PawnsOnly(Chess):
+    def uci_name(self) -> str:
+        return "pawnsonly"
+
+    def startpos(self) -> Position:
+        b = PositionBuilder((8, 8), 0)
+        for file in range(8):
+            b.piece(Square(file=file, rank=1), Piece("P", Color.WHITE))
+            b.piece(Square(file=file, rank=6), Piece("P", Color.BLACK))
+        b.extra("ep", None)
+        return b.build()
+
+    def game_value(self, startpos: Position, moves: Iterable[Move]) -> Optional[GameEndValue]:
+        positions = [startpos]
+        for m in moves:
+            p, _ = self.execute_move(positions[-1], m)
+            positions.append(p)
+        pos = positions[-1]
+        for sq, p in pos.pieces_iter():
+            if sq.rank in {0,7}:
+                return GameEndValue.win_for(p.color)
+
+        return None
+
 class RacingKings(Chess):
     def uci_name(self) -> str:
         return "racingkings"
