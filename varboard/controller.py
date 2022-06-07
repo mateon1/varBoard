@@ -1,9 +1,40 @@
 from __future__ import annotations
 
-from typing import Optional, Iterable, Iterator, Dict, Any
+import copy
+import time
+import threading
+import queue
 
-from .state import Position, Move, BoardAction, GameEndValue
+from typing import Optional, Iterable, Iterator, Dict, Any, Callable, Union, TYPE_CHECKING
+
+from .state import Position, Move, BoardAction, GameEndValue, Color
 from .variant import Variant
+
+if TYPE_CHECKING:
+    from .uci import UCIEngine, Score
+
+
+class TimeControl:
+    def __init__(self, time: Union[int, float, tuple[int, int], tuple[float, float]], inc: Optional[Union[int, float, tuple[int, int], tuple[float, float]]]):
+        if isinstance(time, tuple):
+            self.time = float(time[0]), float(time[1])
+        else:
+            self.time = float(time), float(time)
+        if inc is not None:
+            if isinstance(inc, tuple):
+                self.inc = float(inc[0]), float(inc[1])
+            else:
+                self.inc = float(inc), float(inc)
+        else:
+            self.inc = 0.0, 0.0
+
+    def subtract(self, color: Color, dur: float) -> bool:
+        if color == Color.WHITE:
+            self.time = self.time[0] - dur + self.inc[0], self.time[1]
+            return self.time[0] >= self.inc[0]
+        else:
+            self.time = self.time[0], self.time[1] - dur + self.inc[1]
+            return self.time[1] >= self.inc[1]
 
 
 class GameTree:
@@ -29,11 +60,24 @@ class GameTree:
 
 
 class GameController:
-    def __init__(self, variant: Variant, pos: Optional[Position]):
+    def __init__(self, variant: Variant, pos: Optional[Position] = None, tc: Optional[TimeControl] = None):
         self.variant = variant
+        self.root_is_startpos = pos is None
         self.tree = GameTree(variant.startpos() if pos is None else pos)
         self.current = self.tree
         self.curmoves: list[Move] = []
+        self.uci: Optional[UCIEngine] = None
+        self.uci_info_thread: Optional[threading.Thread] = None
+        self.analysis_callback: Optional[Callable[[list[tuple[Move, Score]]], None]] = None
+        self.orig_tc = TimeControl(5.0, 2.0) if tc is None else tc # TODO: Make this default more obvious / configurable
+        self.tc = copy.deepcopy(self.orig_tc)
+
+    def set_tc(self, tc: TimeControl) -> None:
+        self.orig_tc = tc
+        self.tc = copy.deepcopy(tc)
+
+    def reset_tc(self) -> None:
+        self.tc = copy.deepcopy(self.orig_tc)
 
     def root(self) -> None:
         self.current = self.tree
@@ -59,3 +103,70 @@ class GameController:
 
     def legal_moves(self) -> Iterator[Move]:
         return self.variant.legal_moves(self.current.pos)
+
+    def with_engine(self, uci: UCIEngine) -> None:
+        self.uci = uci
+
+    def set_analysis_callback(self, cb: Callable[[list[tuple[Move, Score]]], None]) -> None:
+        self.analysis_callback = cb
+
+    def _uci_info_thread_fn(self) -> None:
+        assert self.uci is not None
+        assert self.uci.running
+        dirty = True
+        while self.uci.running:
+            try:
+                self.uci.uci_info_queue.get(timeout=0.1)
+                if not dirty:
+                    time.sleep(0.001) # minimal sleep to let info messages accumulate
+                dirty = True
+            except queue.Empty:
+                if dirty:
+                    if self.analysis_callback is not None:
+                        arg = []
+                        for ctx in self.uci.uci_scores:
+                            if ctx is None: continue
+                            _score = ctx.get("score")
+                            assert _score is not None
+                            score: Score = _score
+                            _pv = ctx.get("pv")
+                            assert _pv is not None
+                            pv: str = _pv
+                            move = Move.from_uci(pv.split(maxsplit=1)[0], self.current.pos.ply)
+                            arg.append((move, score))
+                        self.analysis_callback(arg)
+                dirty = False
+
+    def _start_engine(self) -> None:
+        assert self.uci is not None
+        assert self.uci_info_thread is None
+        if "UCI_Variant" not in self.uci.uci_options:
+            assert self.variant.uci_name() == "chess", "Engines with no UCI_Variant support can only play chess"
+        else:
+            self.uci.option_set("UCI_Variant", self.variant.uci_name())
+        if not self.uci.running:
+            self.uci.start()
+            self.uci.send_initial()
+        self.uci_info_thread = threading.Thread(target=self._uci_info_thread_fn)
+        self.uci_info_thread.start()
+
+    def engine_move(self) -> tuple[list[BoardAction], Optional[GameEndValue]]:
+        assert self.uci is not None
+        if self.uci_info_thread is None:
+            self._start_engine()
+        self.uci.set_position(self.variant.pos_to_fen(self.tree.pos) if not self.root_is_startpos else None, self.curmoves)
+        start = time.time()
+        move = Move.from_uci(self.uci.search_sync(self.tc.time, self.tc.inc), self.current.pos.ply)
+        self.tc.subtract(Color.from_ply(self.current.pos.ply), time.time() - start)
+        return self.move(move)
+
+    def engine_analyse(self) -> None:
+        assert self.uci is not None
+        if self.uci_info_thread is None:
+            self._start_engine()
+        self.uci.set_position(self.variant.pos_to_fen(self.tree.pos) if not self.root_is_startpos else None, self.curmoves)
+        self.uci.search_async()
+
+    def engine_stop(self) -> None:
+        assert self.uci is not None
+        self.uci.search_stop()

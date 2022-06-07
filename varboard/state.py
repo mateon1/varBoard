@@ -238,6 +238,32 @@ class Move:
         tosq = tosq_raw if isinstance(tosq_raw, Square) else Square.from_algebraic(tosq_raw)
         return Move(None, tosq, piece)
 
+    @staticmethod
+    def from_uci(move: str, ply: int) -> Move:
+        if "@" in move:
+            piece, sq = move.rsplit("@", maxsplit=1)
+            return Move.drop_at(sq, Piece(piece, Color.from_ply(ply)))
+        AL = "abcdefghijklmnopqrstuvwxyz"
+        NUM = "0123456789"
+        assert move[0] in AL, move
+        assert move[1] in NUM, move
+        fromi = 2
+        while move[fromi] in NUM: fromi += 1
+        assert move[fromi] in AL, move
+        assert move[fromi+1] in NUM, move
+        toi = fromi+2
+        while toi < len(move) and move[toi] in NUM: toi += 1
+        froms = move[:fromi]
+        tos = move[fromi:toi]
+        rest = move[toi:]
+        if len(rest):
+            return Move.move_promote(froms, tos, Piece(rest, Color.from_ply(ply)))
+        else:
+            return Move.move(froms, tos)
+
+    def to_uci(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         if self.fromsq is None:
             if self.tosq is None:

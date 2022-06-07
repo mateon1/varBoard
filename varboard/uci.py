@@ -2,15 +2,34 @@ import queue
 import subprocess
 import threading
 import time
+import enum
 from .controller import GameController
 from .variant import *
-from typing import Optional, Union, Iterator, Iterable, Callable, Any, TypeVar
+from typing import Optional, Union, Iterator, Iterable, Callable, Any, TypeVar, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .state import Move
 
 # Types:
-function = type(lambda: 0)
+class ScoreType(enum.Enum):
+    MATE = "M"
+    CENTIPAWN = "cp"
+    INFINITE = "inf"
+
+
 Context = dict[str, Any]
 CommandData = tuple[str, Context]
 Parser = Callable[[bytes, Context], tuple[Any, bytes]]
+Score = tuple[ScoreType, int]
+T = TypeVar("T")
+
+
+def score_cp(val: int) -> Score:
+    return (ScoreType.CENTIPAWN, val)
+
+
+def score_mate(val: int) -> Score:
+    return (ScoreType.MATE, val)
 
 
 def take_word(line: bytes) -> tuple[bytes, bytes]:
@@ -39,16 +58,18 @@ def parse_int(line: bytes, _ctx: Context) -> tuple[int, bytes]:
     return int(i), rest
 
 
-def parse_score(line: bytes, _ctx: Context) -> tuple[tuple[str, Any], bytes]:
+def parse_score(line: bytes, _ctx: Context) -> tuple[Score, bytes]:
     ty, rest = take_word(line)
     if ty == b"cp":
         v, rest = take_word(rest)
-        return ("cp", int(v)), rest
+        return score_cp(int(v)), rest
     elif ty == b"mate":
         v, rest = take_word(rest)
-        return ("mate", int(v)), rest
+        return score_mate(int(v)), rest
+    elif b"inf" in ty:
+        return (ScoreType.INFINITE, -1 if b"-" in ty else 1), rest
     else:  # Maybe it's centipawns without cp?
-        return ("cp", float(ty)), rest  ## XXX: Hack, handle infinity
+        return score_cp(int(ty)), rest
 
 
 def parse_wdl(line: bytes, _ctx: Context) -> tuple[tuple[int, int, int], bytes]:
@@ -133,15 +154,13 @@ UCI_FIELDS: dict[str, dict[str, Union[Parser, set[str]]]] = {
 }
 
 # Windows sucks, so ^C cannot interrupt queue.get(). This is the workaround
-T = TypeVar("T")
-
-
-def get_interruptible(q: queue.SimpleQueue[T]) -> T:
-    while True:
+def get_interruptible(q: queue.SimpleQueue[T], pred: Callable[[], bool] = lambda: True) -> Optional[T]:
+    while pred():
         try:
             return q.get(timeout=0.2)
         except queue.Empty:
             pass
+    return None
 
 
 class UCIEngine:
@@ -217,9 +236,9 @@ class UCIEngine:
     def probe_engine(self) -> None:
         self.start()
         self.send_command("uci")
-        print(get_interruptible(self.uci_ready_queue))
+        print(get_interruptible(self.uci_ready_queue, lambda: self.running))
         self.send_command("isready")
-        print(get_interruptible(self.uci_ready_queue))
+        print(get_interruptible(self.uci_ready_queue, lambda: self.running))
         self.close_wait()
 
     def option_set(self, option: str, value: Union[None, int, str, bool]) -> None:
@@ -228,7 +247,7 @@ class UCIEngine:
             raise ValueError("Invalid option " + option)
         if ctx["type"] == "button":
             assert self.running
-            uci.send_command("setoption name " + option)
+            self.send_command("setoption name " + option)
             return
         if ctx["type"] == "check":
             assert isinstance(value, bool)
@@ -260,20 +279,41 @@ class UCIEngine:
                 self.send_command(f"setoption name {option} value {default}")
 
     def send_initial(self) -> None:
-        uci.send_command("uci")
-        print(get_interruptible(self.uci_ready_queue))
+        self.send_command("uci")
+        print(get_interruptible(self.uci_ready_queue, lambda: self.running))
         for opt, val in self.uci_set_options.items():
-            uci.send_command(f"setoption name {opt} value {val}")
-        uci.send_command("isready")
-        print(get_interruptible(self.uci_ready_queue))
+            self.send_command(f"setoption name {opt} value {val}")
+        self.send_command("isready")
+        print(get_interruptible(self.uci_ready_queue, lambda: self.running))
 
-    def search_sync(self, time: tuple[float, float], inc: Optional[tuple[float, float]]) -> str:
+    def set_position(self, initial: Optional[str], moves: Optional[list[Move]]) -> None:
+        cmd = "position "
+        if initial is not None:
+            if initial.startswith("fen ") or initial == "startpos":
+                cmd += initial
+            else:
+                cmd += "fen " + initial
+        else:
+            cmd += "startpos"
+        if moves is not None:
+            cmd += " moves"
+            for move in moves:
+                cmd += " " + move.to_uci()
+        self.send_command(cmd)
+        self.send_command("isready")
+        print(get_interruptible(self.uci_ready_queue, lambda: self.running))
+
+    def search_sync(self, time: tuple[float, float], inc: Optional[tuple[float, float]] = None) -> str:
         self.search_async(time, inc)
-        _, ctx = get_interruptible(self.uci_move_queue)
-        # TODO: Return actual Move
-        return ctx["bestmove"]
+        raw = get_interruptible(self.uci_move_queue)
+        assert raw is not None
+        _, ctx = raw
+        assert not self.searching
+        # TODO: Return actual Move -- Need ply info somehow
+        move: str = ctx["bestmove"]
+        return move
 
-    def search_async(self, time: Optional[tuple[float, float]], inc: Optional[tuple[float, float]]) -> None:
+    def search_async(self, time: Optional[tuple[float, float]] = None, inc: Optional[tuple[float, float]] = None) -> None:
         assert not self.searching
         self.searching = True
         cmd = "go"
@@ -285,7 +325,19 @@ class UCIEngine:
                 winc = int(inc[0] * 1000)
                 binc = int(inc[1] * 1000)
                 cmd += f" winc {winc} binc {binc}"
+        else:
+            cmd += " infinite"
         self.send_command(cmd)
+
+    def search_stop(self) -> str:
+        assert self.searching
+        self.send_command("stop")
+        raw = get_interruptible(self.uci_move_queue)
+        assert raw is not None
+        _, ctx = raw
+        # TODO: Return actual Move
+        move: str = ctx["bestmove"]
+        return move
 
     def reader(self, pipe: Iterator[bytes]) -> None:
         assert self.engine_process is not None
@@ -345,14 +397,15 @@ if __name__ == "__main__":  # TEMPORARY - for testing
     import sys
 
     print(sys.argv)
-    FISH = "/home/mateon/shared/dev/Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
-    FISH = "./fairy-stockfish-largeboard_x86-64-bmi2.exe"
+    #FISH = "/home/mateon/shared/dev/Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
+    FISH = "/home/mateon/shared/dev/Stockfish/releases/fairy-stockfish-14.0.1-largeboards-dev-6bdcdd8"
+    #FISH = "./fairy-stockfish-largeboard_x86-64-bmi2.exe"
     uci = UCIEngine(FISH)
     uci.start()
-    # uci.send_command("load ../Stockfish/releases/variants.ini")
-    uci.send_command("load ../Fairy-Stockfish/src/variants.ini")
+    uci.send_command("load ../Stockfish/releases/variants.ini")
+    # uci.send_command("load ../Fairy-Stockfish/src/variants.ini")
     uci.send_command("uci")
-    print(get_interruptible(uci.uci_ready_queue))
+    print(get_interruptible(uci.uci_ready_queue, lambda: uci.running))
     uci.close_wait()
 
     print("variants", uci.uci_options["UCI_Variant"]["var"])
@@ -365,28 +418,28 @@ if __name__ == "__main__":  # TEMPORARY - for testing
     if len(sys.argv) > 2:
         uci.option_set("EvalFile", sys.argv[2])
 
-    uci.option_set("Hash", 128)
+    uci.option_set("Hash", 1024)
     uci.option_set("Threads", 32)
 
     uci.start()
-    # uci.send_command("load ../Stockfish/releases/variants.ini")
-    uci.send_command("load ../Fairy-Stockfish/src/variants.ini")
+    uci.send_command("load ../Stockfish/releases/variants.ini")
+    # uci.send_command("load ../Fairy-Stockfish/src/variants.ini")
     uci.send_initial()
 
     # for ts, l in uci.log:
     #    if not "option" in l: continue
     #    print(f"{ts:.6f} {l.strip()}")
     cur_i = 0
-    wtime = btime = 0
+    wtime = btime = 0.0
     moves: list[str] = []
     start = time.time()
 
     if variant == "chess":
-        controller = GameController(Chess(), None)
+        controller = GameController(Chess())
     elif variant == "tictactoe":
-        controller = GameController(TicTacToe(), None)
+        controller = GameController(TicTacToe())
     elif variant == "racingkings":
-        controller = GameController(RacingKings(), None)
+        controller = GameController(RacingKings())
 
     def info_thread_fn() -> None:
         time.sleep(0.1)
@@ -440,8 +493,6 @@ if __name__ == "__main__":  # TEMPORARY - for testing
             print(moves)
             print(uci.log[-2])
         uci.close_wait()
-        info_thread.join()
     except KeyboardInterrupt:
         uci.close()
-        uci.uci_info_queue = None
-        info_thread.join()
+    info_thread.join()

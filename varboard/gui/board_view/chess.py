@@ -51,6 +51,7 @@ class ChessBoardView(BoardView):
     def domove(self, move: Move) -> None:
         print("executing move", move)
         actns, gameend = self.controller.move(move)
+        print("moves:", " ".join(str(m) for m in self.controller.curmoves))
         for a in actns:
             print("  ", a)
             if a.fromsq is not None:

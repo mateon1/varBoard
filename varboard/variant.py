@@ -19,6 +19,55 @@ def get_kingsq(pos: Position, my: Color) -> tuple[Square, Square]:
     return my_ksq, opp_ksq
 
 
+def fen_board(pos: Position) -> str:
+    cnt = 0
+    last = None
+    out = ""
+    for sq, p in pos.squares_iter():
+        if last != sq.rank:
+            if cnt:
+                out += str(cnt)
+                cnt = 0
+            if last is not None:
+                out += "/"
+            last = sq.rank
+        if p is None:
+            cnt += 1
+        else:
+            if cnt:
+                out += str(cnt)
+                cnt = 0
+            pst = str(p)
+            assert len(pst) == 1, "Nonstandard length piece types not supported yet"
+            out += pst
+    if cnt:
+        out += str(cnt)
+        cnt = 0
+    return out
+
+
+def fen_color(pos: Position) -> str:
+    return Color.from_ply(pos.ply).value
+
+
+def fen_castle(pos: Position) -> str:
+    rights: Optional[tuple[int, int]] = pos.get_extra("castle")
+    if rights is None: return "-"
+    wc, bc = rights
+    return ("K" if wc&1 else "") + ("Q" if wc&2 else "") + ("k" if bc&1 else "") + ("q" if bc&2 else "") or "-"
+
+
+def fen_ep(pos: Position) -> str:
+    ep: Optional[Square] = pos.get_extra("ep")
+    if ep is not None:
+        return str(ep)
+    else:
+        return "-"
+
+def fen_move(pos: Position) -> str:
+    return str(pos.ply // 2 + 1)
+
+
 class Variant:
     """
     This class is the base class for each game variant.
@@ -39,11 +88,23 @@ class Variant:
         """
         raise TypeError("Called _pos_value on Variant base type")
 
+    def uci_name(self) -> str:
+        """
+        Returns the UCI_Variant name for this variant.
+        """
+        raise TypeError("Called uci_name on Variant base type")
+
     def startpos(self) -> Position:
         """
         Returns the starting position for this variant.
         """
         raise TypeError("Called startpos on Variant base type")
+
+    def pos_to_fen(self, pos: Position) -> str:
+        """
+        Returns the FEN representation of the given position, according to current variant.
+        """
+        return f"{fen_board(pos)} {fen_color(pos)} 0 {fen_move(pos)}"
 
     def game_value(self, startpos: Position, moves: Iterable[Move]) -> Optional[GameEndValue]:
         """
@@ -133,6 +194,9 @@ class Variant:
 
 
 class TicTacToe(Variant):
+    def uci_name(self) -> str:
+        return "tictactoe"
+
     @staticmethod
     def lines(pos: Position) -> Iterator[list[Optional[Piece]]]:
         """
@@ -182,6 +246,9 @@ class Chess(Variant):
     CASTLE_SHORT = 1
     CASTLE_LONG = 2
 
+    def uci_name(self) -> str:
+        return "chess"
+
     def startpos(self) -> Position:
         b = PositionBuilder((8, 8), 0)
         for x, p in enumerate("RNBQKBNR"):
@@ -192,6 +259,10 @@ class Chess(Variant):
         b.extra("castle", (3, 3))
         b.extra("ep", None)
         return b.build()
+
+    def pos_to_fen(self, pos: Position) -> str:
+        # TODO: Implement 50mr counter
+        return f"{fen_board(pos)} {fen_color(pos)} {fen_castle(pos)} {fen_ep(pos)} 0 {fen_move(pos)}"
 
     def can_move(self, piece: Piece, like: str) -> bool:
         assert like.upper() == like
@@ -408,6 +479,9 @@ class Chess(Variant):
 
 
 class RacingKings(Chess):
+    def uci_name(self) -> str:
+        return "racingkings"
+
     def startpos(self) -> Position:
         b = PositionBuilder((8, 8), 0)
         for x, p in enumerate("xRBN"):
