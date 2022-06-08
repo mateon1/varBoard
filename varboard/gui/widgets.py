@@ -6,7 +6,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from math import ceil
 from typing import Any, TYPE_CHECKING
-from varboard.state import Color
+from varboard.state import Color, GameEndValue
 from varboard.controller import GameController
 
 import cairosvg
@@ -95,8 +95,10 @@ class ChessTimer(ttk.Label):
         self.controller = controller
         if color == Color.WHITE:
             self.time_index = 0
+            self.end_value = GameEndValue.WHITE_WIN
         else:
             self.time_index = 1
+            self.end_value = GameEndValue.BLACK_WIN
         secs = self.controller.tc.time[self.time_index]
         self.configure(text=f'{self.time_to_text(secs)}')
 
@@ -111,6 +113,8 @@ class ChessTimer(ttk.Label):
         if self.active:
             secs -= time.time() - self.started
         self.configure(text=f'{self.time_to_text(secs)}')
+        if secs < 0:
+            self.master.master.end_game(self.end_value)
         if self.active:
             self.after(100, self.update)
 
