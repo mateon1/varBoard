@@ -19,6 +19,7 @@ class TicTacToeBoardView(BoardView):
 
     def grid_components(self) -> None:
         self.frm_main_board.grid(row=0, column=0)
+        self.frm_side_panel.grid(row=0,  column=1)
 
     def piece_to_id(self, piece: Piece) -> str:
         return "o" if piece.color == Color.WHITE else "x"

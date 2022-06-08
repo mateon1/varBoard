@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 import tkinter.messagebox
-from ..widgets import SquareView, PieceView, ChessTimer
+from ..widgets import SquareView, PieceView, ChessTimer, AdvantageBar
 from ...state import GameEndValue, Color
 
 from typing import Any, Union, Optional, TYPE_CHECKING
@@ -27,8 +27,18 @@ class BoardView(tk.Frame):
         self.frm_side_panel = tk.Frame(master=self)
         self.white_timer = ChessTimer(master=self.frm_side_panel, color=Color.WHITE, controller=self.controller)
         self.black_timer = ChessTimer(master=self.frm_side_panel, color=Color.BLACK, controller=self.controller)
-        self.white_timer.pack(side=tk.BOTTOM, fill=tk.X)
-        self.black_timer.pack(side=tk.TOP, fill=tk.X)
+        self.white_timer.grid(row=0, column=0, sticky='n', pady=40)
+        self.black_timer.grid(row=2, column=0, sticky='w', pady=40)
+
+        # self.frm_advantage_bar = tk.Frame(master=self.frm_side_panel)
+        # self.advantage_bar = AdvantageBar(master=self.frm_advantage_bar, controller=controller)
+        # self.advantage_bar.pack()
+
+        self.frm_buttons = tk.Frame(master=self.frm_side_panel)
+        self.btn_quit = tk.Button(master=self.frm_buttons, text="QUIT", command=self.handle_quit_button)
+        self.btn_quit.pack(anchor='center')
+        self.frm_buttons.grid(row=1, column=0, sticky='nesw')
+
 
         self.board_height, self.board_width = controller.current.pos.bounds()
 
@@ -64,6 +74,9 @@ class BoardView(tk.Frame):
         # set pieces from current position
         for sq, p in controller.current.pos.pieces_iter():
             self.set_piece(sq, p)
+
+    def handle_quit_button(self):
+        self.master.end_game()
 
     def color_for(self, x: int, y: int) -> str:
         if self.reverse: x, y = self.board_width - x - 1, self.board_height - y - 1

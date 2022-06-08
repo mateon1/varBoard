@@ -40,7 +40,8 @@ class ChessBoardView(BoardView):
         self.frm_main_board.grid(row=1, column=1)
         self.frm_letter_bar.grid(row=2, column=1, sticky='nesw')
         self.frm_number_bar.grid(row=1, column=0, sticky='nesw')
-        self.frm_side_panel.grid(row=1, column=2, sticky='nesw')
+        self.frm_side_panel.grid(row=1, column=2, sticky='ew')
+        # self.frm_advantage_bar.grid(row=1, column=3, sticky='nesw')
 
 
         # empty bars for rest sides to maintain symmetry

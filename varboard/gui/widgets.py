@@ -57,8 +57,9 @@ class PieceView(tk.Label):
         self.x = x
         self.y = y
 
+
 class AdvantageBar(ttk.Progressbar):
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args: Any, controller: GameController, **kwargs: Any):
         kwargs['orient'] = 'vertical'
         kwargs['mode'] = 'determinate'
         kwargs['length'] = 280
@@ -68,9 +69,11 @@ class AdvantageBar(ttk.Progressbar):
         style.configure('white.Vertical.TProgressbar', background='white', troughcolor='black', bordercolor='lightgrey')
         self.white_advantage = 0.5
         self.configure(style='white.Vertical.TProgressbar')
+        controller.set_analysis_callback(self.set_advantages)
 
-    def set_advantages(self, white: float) -> None:
-        self.white_advantage = white
+    def set_advantages(self, arg) -> None:
+        print(arg)
+        self.white_advantage = 50
         self.update()
 
     def update(self) -> None:

@@ -11,15 +11,15 @@ if TYPE_CHECKING:
 
 
 # TODO: Better configuration for this
-ENGINE1_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana1-dev-6bdcdd8"
-ENGINE1_ARGS = "load ../Stockfish/releases/variants.ini".split()
+ENGINE1_PATH = "../Fairy-Stockfish/src/fairy-stockfish-largeboard_x86-64"
+ENGINE1_ARGS = "load ../Fairy-Stockfish/src/variants.ini".split()
 ENGINE1_CONFIG = {
     "Threads": 32,
     "Hash": 256,
 #    "SyzygyPath": "/nfs/syzygy",
 }
-ENGINE2_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
-ENGINE2_ARGS = "load ../Stockfish/releases/variants.ini".split()
+ENGINE2_PATH = "../Fairy-Stockfish/src/fairy-stockfish-largeboard_x86-64"
+ENGINE2_ARGS = "load ../Fairy-Stockfish/src/variants.ini".split()
 ENGINE2_CONFIG = ENGINE1_CONFIG
 
 
