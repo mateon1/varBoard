@@ -40,7 +40,7 @@ class MainApplication(tk.Tk):
         else:
             assert False, f"Impossible mode: {mode}"
         if option == "Standard":
-            self.start_variant("chess", n_engines)
+            self.start_variant("chess", n_engines, time=120, inc=5)
         elif option == "No castling":
             self.start_variant("nocastle", n_engines)
         elif option == "Pawns only":
@@ -72,6 +72,9 @@ class MainApplication(tk.Tk):
             raise ValueError("Unknown variant " + variant)
         if time is not None:
             controller.set_tc(TimeControl(time, inc))
+            self.board_view.white_timer.set_time(time)
+            self.board_view.black_timer.set_time(time)
+            controller.tc.set_clocks((self.board_view.white_timer, self.board_view.black_timer))
         if n_engines:
             uci = UCIEngine(ENGINE1_PATH, ENGINE1_ARGS)
             for k, v in ENGINE1_CONFIG.items():

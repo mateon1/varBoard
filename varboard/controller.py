@@ -27,14 +27,22 @@ class TimeControl:
                 self.inc = float(inc), float(inc)
         else:
             self.inc = 0.0, 0.0
+        self.clocks = (None, None)
 
     def subtract(self, color: Color, dur: float) -> bool:
         if color == Color.WHITE:
             self.time = self.time[0] - dur + self.inc[0], self.time[1]
+            self.clocks[0].stop()
+            self.clocks[1].start()
             return self.time[0] >= self.inc[0]
         else:
             self.time = self.time[0], self.time[1] - dur + self.inc[1]
+            self.clocks[1].stop()
+            self.clocks[0].start()
             return self.time[1] >= self.inc[1]
+
+    def set_clocks(self, clocks):
+        self.clocks = clocks
 
 
 class GameTree:
@@ -75,6 +83,7 @@ class GameController:
         self.analysis_callback: Optional[Callable[[list[tuple[Move, Score]]], None]] = None
         self.orig_tc = TimeControl(5.0, 2.0) if tc is None else tc # TODO: Make this default more obvious / configurable
         self.tc = copy.deepcopy(self.orig_tc)
+        self.start_move_time = time.time()
 
     def set_tc(self, tc: TimeControl) -> None:
         self.orig_tc = tc
@@ -93,6 +102,14 @@ class GameController:
 
     def move(self, move: Move) -> tuple[list[BoardAction], Optional[GameEndValue]]:
         newpos, actions = self.variant.execute_move(self.current.pos, move)
+
+        if newpos.ply == 1:
+            self.tc.clocks[0].stop()
+            self.tc.clocks[1].start()
+        else:
+            self.tc.subtract(Color.from_ply(newpos.ply+1), time.time() - self.start_move_time)
+        self.start_move_time = time.time()
+
         if move not in self.current.next_moves:
             self.current.add_move(move, newpos)
         self.current = self.current.next_moves[move]

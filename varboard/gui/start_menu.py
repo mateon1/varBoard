@@ -35,7 +35,7 @@ class StartMenu(tk.Frame):
         # # variant OptionMenu
         self.mode_value_inside = tk.StringVar(self.mode_frm)
         self.mode_value_inside.set("Select a mode")
-        self.modes = ["2 players", "Player vs Computer", "Computer vs Computer"]
+        self.modes = ["2 Players", "Player vs Computer", "Computer vs Computer"]
         self.mode_om = tk.OptionMenu(self.mode_frm, self.mode_value_inside, *self.modes)
         self.mode_om.config(font=("Courier", 12))
         self.mode_om.pack(side=tk.LEFT, fill='x')

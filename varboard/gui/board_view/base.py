@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import tkinter as tk
 import tkinter.messagebox
-from ..widgets import SquareView, PieceView
-from ...state import GameEndValue
+from ..widgets import SquareView, PieceView, ChessTimer
+from ...state import GameEndValue, Color
 
 from typing import Any, Union, Optional, TYPE_CHECKING
 
@@ -23,6 +23,12 @@ class BoardView(tk.Frame):
 
         self.controller = controller
         self.engine_play = False
+
+        self.frm_side_panel = tk.Frame(master=self)
+        self.white_timer = ChessTimer(master=self.frm_side_panel, color=Color.WHITE, controller=self.controller)
+        self.black_timer = ChessTimer(master=self.frm_side_panel, color=Color.BLACK, controller=self.controller)
+        self.white_timer.pack(side=tk.BOTTOM, fill=tk.X)
+        self.black_timer.pack(side=tk.TOP, fill=tk.X)
 
         self.board_height, self.board_width = controller.current.pos.bounds()
 
