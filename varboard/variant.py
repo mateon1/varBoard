@@ -432,8 +432,12 @@ class Chess(Variant):
             rook = pos.get_piece(rookfrom)
             assert rook is not None
             for i in {4, 5, 6, 7}:
-                if Square(rank=homerank, file=i) in attackedsq:
+                sq = Square(rank=homerank, file=i)
+                if sq in attackedsq:
                     break
+                if sq not in {move.fromsq, rookfrom}:
+                    if pos.get_piece(sq) is not None:
+                        break
             else:
                 yield move
         if myrights & Chess.CASTLE_LONG:
@@ -443,8 +447,12 @@ class Chess(Variant):
             rook = pos.get_piece(rookfrom)
             assert rook is not None
             for i in {0, 1, 2, 3, 4}:
-                if Square(rank=homerank, file=i) in attackedsq:
+                sq = Square(rank=homerank, file=i)
+                if sq in attackedsq:
                     break
+                if sq not in {move.fromsq, rookfrom}:
+                    if pos.get_piece(sq) is not None:
+                        break
             else:
                 yield move
 
