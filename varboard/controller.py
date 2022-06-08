@@ -117,7 +117,8 @@ class GameController:
 
     def move(self, move: Move) -> tuple[list[BoardAction], Optional[GameEndValue]]:
         newpos, actions = self.variant.execute_move(self.current.pos, move)
-        self.tc.stop(Color.from_ply(self.current.pos.ply))
+        if self.tc.active:
+            self.tc.stop(Color.from_ply(self.current.pos.ply))
 
         if move not in self.current.next_moves:
             self.current.add_move(move, newpos)
