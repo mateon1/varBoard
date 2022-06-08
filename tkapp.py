@@ -30,7 +30,7 @@ class MainApplication(tk.Tk):
         self.start_menu.pack()
         self.board_view: Optional[BoardView] = None
 
-    def handle_play_btn(self, option: str, mode: str) -> None:
+    def handle_play_btn(self, option: str, mode: str, initial_time: int, increment_time: int) -> None:
         if mode == "2 Players":
             n_engines = 0
         elif mode == "Player vs Computer":
@@ -40,15 +40,15 @@ class MainApplication(tk.Tk):
         else:
             assert False, f"Impossible mode: {mode}"
         if option == "Standard":
-            self.start_variant("chess", n_engines, time=120, inc=5)
+            self.start_variant("chess", n_engines, time=initial_time, inc=increment_time)
         elif option == "No castling":
-            self.start_variant("nocastle", n_engines)
+            self.start_variant("nocastle", n_engines, time=initial_time, inc=increment_time)
         elif option == "Pawns only":
-            self.start_variant("pawnsonly", n_engines)
+            self.start_variant("pawnsonly", n_engines, time=initial_time, inc=increment_time)
         elif option == "TicTacToe":
-            self.start_variant("tictactoe", n_engines)
+            self.start_variant("tictactoe", n_engines, time=initial_time, inc=increment_time)
         elif option == "Racing Kings":
-            self.start_variant("racingkings", n_engines)
+            self.start_variant("racingkings", n_engines, time=initial_time, inc=increment_time)
 
     def start_variant(self, variant: str, n_engines: int, time: Optional[float] = None, inc: Optional[float] = None) -> None:
         global controller # DEBUG!!!
