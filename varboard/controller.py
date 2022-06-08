@@ -12,6 +12,7 @@ from .variant import Variant
 
 if TYPE_CHECKING:
     from .uci import UCIEngine, Score
+    from .gui.widgets import ChessTimer
 
 
 class TimeControl:
@@ -27,22 +28,37 @@ class TimeControl:
                 self.inc = float(inc), float(inc)
         else:
             self.inc = 0.0, 0.0
-        self.clocks = (None, None)
+        self.clocks: Optional[tuple[ChessTimer, ChessTimer]] = None
+        self.active = False
+        self.starttime = 0.0
 
     def subtract(self, color: Color, dur: float) -> bool:
         if color == Color.WHITE:
             self.time = self.time[0] - dur + self.inc[0], self.time[1]
-            self.clocks[0].stop()
-            self.clocks[1].start()
             return self.time[0] >= self.inc[0]
         else:
             self.time = self.time[0], self.time[1] - dur + self.inc[1]
-            self.clocks[1].stop()
-            self.clocks[0].start()
             return self.time[1] >= self.inc[1]
 
-    def set_clocks(self, clocks):
+    def set_clocks(self, clocks: tuple[ChessTimer, ChessTimer]) -> None:
         self.clocks = clocks
+
+    def start(self, color: Color) -> None:
+        assert not self.active
+        self.active = True
+        self.starttime = time.time()
+        if self.clocks is not None:
+            self.clocks[0 if color == Color.WHITE else 1].start()
+
+    def stop(self, color: Color) -> bool:
+        assert self.active
+        self.active = False
+        ret = self.subtract(color, time.time() - self.starttime)
+        if self.clocks is not None:
+            self.clocks[0 if color == Color.WHITE else 1].stop()
+        print("Timers: %.2f, %.2f" % self.time)
+        print("Color:", color)
+        return ret
 
 
 class GameTree:
@@ -83,7 +99,6 @@ class GameController:
         self.analysis_callback: Optional[Callable[[list[tuple[Move, Score]]], None]] = None
         self.orig_tc = TimeControl(5.0, 2.0) if tc is None else tc # TODO: Make this default more obvious / configurable
         self.tc = copy.deepcopy(self.orig_tc)
-        self.start_move_time = time.time()
 
     def set_tc(self, tc: TimeControl) -> None:
         self.orig_tc = tc
@@ -102,13 +117,7 @@ class GameController:
 
     def move(self, move: Move) -> tuple[list[BoardAction], Optional[GameEndValue]]:
         newpos, actions = self.variant.execute_move(self.current.pos, move)
-
-        if newpos.ply == 1:
-            self.tc.clocks[0].stop()
-            self.tc.clocks[1].start()
-        else:
-            self.tc.subtract(Color.from_ply(newpos.ply+1), time.time() - self.start_move_time)
-        self.start_move_time = time.time()
+        self.tc.stop(Color.from_ply(self.current.pos.ply))
 
         if move not in self.current.next_moves:
             self.current.add_move(move, newpos)
@@ -192,10 +201,9 @@ class GameController:
         assert self.lastuci is not None
         self.lastuci.set_position(self.variant.pos_to_fen(self.tree.pos) if not self.root_is_startpos else None, self.curmoves)
         def move_thread_fn() -> None:
-            start = time.time()
             assert self.lastuci is not None
+            self.tc.start(Color.from_ply(self.current.pos.ply))
             move = Move.from_uci(self.lastuci.search_sync(self.tc.time, self.tc.inc), self.current.pos.ply)
-            self.tc.subtract(Color.from_ply(self.current.pos.ply), time.time() - start)
             cb(self.move(move))
         self.move_thread = threading.Thread(target=move_thread_fn)
         self.move_thread.start()
@@ -208,9 +216,8 @@ class GameController:
             self.lastuci = self.uci if self.current.pos.ply % 2 == 0 else self.uci2
         assert self.lastuci is not None
         self.lastuci.set_position(self.variant.pos_to_fen(self.tree.pos) if not self.root_is_startpos else None, self.curmoves)
-        start = time.time()
+        self.tc.start(Color.from_ply(self.current.pos.ply))
         move = Move.from_uci(self.lastuci.search_sync(self.tc.time, self.tc.inc), self.current.pos.ply)
-        self.tc.subtract(Color.from_ply(self.current.pos.ply), time.time() - start)
         return self.move(move)
 
     def engine_analyse(self) -> None:

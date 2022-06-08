@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import time
 import tkinter as tk
 import tkinter.ttk as ttk
 from math import ceil
@@ -57,7 +58,7 @@ class PieceView(tk.Label):
         self.y = y
 
 class AdvantageBar(ttk.Progressbar):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         kwargs['orient'] = 'vertical'
         kwargs['mode'] = 'determinate'
         kwargs['length'] = 280
@@ -68,7 +69,7 @@ class AdvantageBar(ttk.Progressbar):
         self.white_advantage = 0.5
         self.configure(style='white.Vertical.TProgressbar')
 
-    def set_advantages(self, white):
+    def set_advantages(self, white: float) -> None:
         self.white_advantage = white
         self.update()
 
@@ -87,44 +88,38 @@ class ChessTimer(ttk.Label):
         super().__init__(kwargs['master'])
         self.configure(font=('Courier', 25))
         self.active = False
+        self.started = time.time()
         self.controller = controller
-        self.time = 0
         if color == Color.WHITE:
             self.time_index = 0
         else:
             self.time_index = 1
-        self.configure(text=f'{self.time_to_text(self.time)}')
+        secs = self.controller.tc.time[self.time_index]
+        self.configure(text=f'{self.time_to_text(secs)}')
 
-    def start(self):
+    def start(self) -> None:
         self.active = True
         self.time = self.controller.tc.time[self.time_index]
-        self.count_down()
+        self.started = time.time()
+        self.update()
 
-    def count_down(self):
-        if not self.active:
-            return
+    def update(self) -> None:
+        secs = self.controller.tc.time[self.time_index]
+        if self.active:
+            secs -= time.time() - self.started
+        self.configure(text=f'{self.time_to_text(secs)}')
+        if self.active:
+            self.after(100, self.update)
 
-        self.configure(text=f'{self.time_to_text(self.time)}')
-        self.time -= 1
-        self.after(1000, self.count_down)
-
-    def stop(self):
-        self.time = self.controller.tc.time[self.time_index]
-        self.configure(text=f'{self.time_to_text(self.time)}')
+    def stop(self) -> None:
         self.active = False
+        self.update()
 
     @staticmethod
-    def time_to_text(seconds):
-        seconds = ceil(seconds)
-        min_txt = str(seconds//60)
-        if len(min_txt) < 2:
-            min_txt = '0'+min_txt
-        seconds = seconds % 60
-        sec_txt = str(seconds)
-        if seconds < 10:
-            sec_txt = '0'+sec_txt
-        return f'{min_txt}:{sec_txt}'
-
-    def set_time(self, time):
-        self.configure(text=f'{self.time_to_text(time)}')
-        self.time = time
+    def time_to_text(seconds: float) -> str:
+        sign = ""
+        if seconds < 0:
+            sign = "-"
+            seconds = -seconds
+        mins, secs = divmod(seconds, 60.0)
+        return f'{sign}{round(mins):02}:{secs:04.1f}'

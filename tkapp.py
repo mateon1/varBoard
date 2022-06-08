@@ -15,7 +15,7 @@ ENGINE1_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana1-dev-6bdcdd8"
 ENGINE1_ARGS = "load ../Stockfish/releases/variants.ini".split()
 ENGINE1_CONFIG = {
     "Threads": 32,
-    "Hash": 1024,
+    "Hash": 256,
 #    "SyzygyPath": "/nfs/syzygy",
 }
 ENGINE2_PATH = "../Stockfish/releases/fairy-stockfish-14.0.1-ana0-dev-6bdcdd8"
@@ -72,9 +72,9 @@ class MainApplication(tk.Tk):
             raise ValueError("Unknown variant " + variant)
         if time is not None:
             controller.set_tc(TimeControl(time, inc))
-            self.board_view.white_timer.set_time(time)
-            self.board_view.black_timer.set_time(time)
             controller.tc.set_clocks((self.board_view.white_timer, self.board_view.black_timer))
+            self.board_view.white_timer.update()
+            self.board_view.black_timer.update()
         if n_engines:
             uci = UCIEngine(ENGINE1_PATH, ENGINE1_ARGS)
             for k, v in ENGINE1_CONFIG.items():

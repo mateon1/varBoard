@@ -549,12 +549,17 @@ class PawnsOnly(Chess):
     def game_value(self, startpos: Position, moves: Iterable[Move]) -> Optional[GameEndValue]:
         positions = [startpos]
         for m in moves:
-            p, _ = self.execute_move(positions[-1], m)
-            positions.append(p)
+            pos, _ = self.execute_move(positions[-1], m)
+            positions.append(pos)
         pos = positions[-1]
         for sq, p in pos.pieces_iter():
             if sq.rank in {0,7}:
                 return GameEndValue.win_for(p.color)
+
+        for m in self.legal_moves(pos):
+            break
+        else:
+            return GameEndValue.DRAW # Stalemate
 
         return None
 

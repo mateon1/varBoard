@@ -147,8 +147,10 @@ class BoardView(tk.Frame):
         self.didmove(self.controller.move(move))
 
     def end_turn(self) -> None:
-        if self.engine_play:
+        if self.engine_play: # TODO: Implement player vs computer
             self.after(100, self.automove)
+        else:
+            self.controller.tc.start(Color.from_ply(self.controller.current.pos.ply))
 
     def end_game(self, gameend: GameEndValue) -> None:
         print("Game ended!", gameend)
